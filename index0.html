@@ -1,4 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Click Game</title>
+  <style>
+    body {
+      background-color: #1a1a1a;
+      color: #e0e0e0;
+      font-family: sans-serif;
+      padding: 20px;
+    }
+    table {
+      table-layout: fixed;
+      border-collapse: collapse;
+    }
+    td {
+      word-wrap: break-word;
+      border: 1px solid #555;
+      padding: 10px;
+      vertical-align: top;
+    }
+    button {
+      background-color: #4a90e2;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 6px 12px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #357abd;
+    }
+    #sceneImg {
+      width: 870px;
+      height: 500px;
+    }
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="menu">
+    <h1>Click Game</h1>
+    <button id="newGame">New Game</button>
+    <button id="loadGame">Load Game</button>
+  </div>
+  <div id="loadmenu" class="hidden">
+    <h1>Load Game</h1>
+    <button id="loadSlot1">Load Slot 1</button>
+    <button id="loadSlot2">Load Slot 2</button>
+    <button id="loadSlot3">Load Slot 3</button>
+    <button id="backToMenu">Back</button>
+  </div>
+  <div id="game" class="hidden">
+    <table border="1">
+      <tr>
+        <td>
+          <table border="1">
+            <tr>
+              <td>
+                <img id="sceneImg" src="images/room1_north.jpg" alt="Scene View" onerror="this.src='https://via.placeholder.com/680x400?text=Image+Not+Found';">
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <table border="1">
+                  <tr>
+                    <td colspan="1" style="width:200px;">FACING: <span id="facingDirection">North</span></td>
+                    <td colspan="2" style="height:100px; width:600px;">
+                      <div id="message">Welcome to the game!</div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <table border="1">
+                        <tr>
+                          <td></td>
+                          <td><button id="turnNorth" aria-label="Turn North">North</button></td>
+                          <td></td>
+                        </tr>
+                        <tr>
+                          <td><button id="turnWest" aria-label="Turn West">West</button></td>
+                          <td>Turn</td>
+                          <td><button id="turnEast" aria-label="Turn East">East</button></td>
+                        </tr>
+                        <tr>
+                          <td></td>
+                          <td><button id="turnSouth" aria-label="Turn South">South</button></td>
+                          <td></td>
+                        </tr>
+                      </table>
+                    </td>
+                    <td>
+                      <table border="1">
+                        <tr>
+                          <td></td>
+                          <td><button id="moveNorth" aria-label="Move North">North</button></td>
+                          <td></td>
+                        </tr>
+                        <tr>
+                          <td><button id="moveWest" aria-label="Move West">West</button></td>
+                          <td>Move</td>
+                          <td><button id="moveEast" aria-label="Move East">East</button></td>
+                        </tr>
+                        <tr>
+                          <td></td>
+                          <td><button id="moveSouth" aria-label="Move South">South</button></td>
+                          <td></td>
+                        </tr>
+                      </table>
+                    </td>
+                    <td>
+                      <table border="1">
+                        <tr>
+                          <td><button>Attack</button></td>
+                          <td><button>Block</button></td>
+                        </tr>
+                        <tr>
+                          <td><button>Magic</button></td>
+                          <td><button>Item</button></td>
+                        </tr>
+                        <tr>
+                          <td colspan="2"><button>Run</button></td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </td>
+        <td>
+          <table style="width:300px;">
+            <tr>
+              <td style="width:100;"><button id="saveSlot1" aria-label="Save to Slot 1">Save 1</button></td>
+              <td style="width:100;"><button id="saveSlot2" aria-label="Save to Slot 2">Save 2</button></td>
+              <td style="width:100;"><button id="saveSlot3" aria-label="Save to Slot 3">Save 3</button></td>
+            </tr>
+            <tr>
+              <td colspan="3"><button id="hintButton" aria-label="Show Hint">Hint</button></td>
+            </tr>
+            <tr>
+              <td colspan="3" style="height:150px;">
+                <div id="inspectActions" role="region" aria-label="Inspection Actions"></div>
+                <div id="actions" role="region" aria-label="Game Actions"></div>
+              </td>
+            </tr>
+            <tr>
+              <td>Notes</td>
+              <td colspan="2">Inventory</td>
+            </tr>
+            <tr>
+              <td style="height:308px;" id="notes" role="region" aria-label="Notes">No notes.</td>
+              <td colspan="2" style="height:308px;" id="inventory" role="region" aria-label="Inventory">No items.</td>
+            </tr>
+            <tr>
+              <td colspan="3" style="height:206px;" id="searchStatus" role="region" aria-label="Search Status">Search Status</td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </div>
 
+  <script>
     document.addEventListener('DOMContentLoaded', () => {
       let state = {};
       const rooms = {
@@ -127,51 +295,51 @@
               additionalText = 'A bare concrete wall, cold and unyielding.';
               roomState.searchStatus.northwall = roomState.searchStatus.northwall || 'pending';
               if (state.inventory.includes('UV Light')) {
-                  additionalText += '<br><br><button onclick="useUV(\'northwall\')">Use UV On North Wall</button>';
+                  additionalText += '<br><button onclick="useUV(\'northwall\')">Use UV On North Wall</button>';
               }
               break;
           case 'east':
-              additionalText = 'A rickety chair teeters beside a wobbly table, both caked in dust.';
               roomState.searchStatus.chair = null;
               roomState.searchStatus.table = null;
+              additionalText = 'A rickety chair teeters beside a wobbly table, both caked in dust.';
               roomState.searchStatus.chair = roomState.searchStatus.chair || 'pending';
               roomState.searchStatus.table = roomState.searchStatus.table || 'pending';
               if (roomState.searchStatus.table === 'inspected') {
                   if (!state.notes.includes('Three is a magic number.')) {
                       additionalText = 'A crumpled note lies on the table, barely legible.<br><button onclick="readNote()">Read Note</button>';
                       if (!state.inventory.includes('uvlight')) {
-                          additionalText += '<br>A dusty UV light rests on the table, faintly humming.<br><br><button onclick="takeItem(\'uvlight\')">Take UV Light</button>';
+                          additionalText += '<br>A dusty UV light rests on the table, faintly humming.<br><button onclick="takeItem(\'uvlight\')">Take UV Light</button>';
                       }
                   } else if (!state.inventory.includes('uvlight')) {
-                      additionalText = 'A dusty UV light rests on the table, faintly humming.<br><br><button onclick="takeItem(\'uvlight\')">Take UV Light</button>';
+                      additionalText = 'A dusty UV light rests on the table, faintly humming.<br><button onclick="takeItem(\'uvlight\')">Take UV Light</button>';
                   } else {
                       additionalText = 'The table holds no further secrets.';
                   }
               } else if (roomState.searchStatus.chair === 'inspected' && !state.inventory.includes('key')) {
-                  additionalText = 'The chair creaks under scrutiny; a glint of metal reveals a key taped beneath it.<br><br><button onclick="takeItem(\'key\')">Take Key</button>';
+                  additionalText = 'The chair creaks under scrutiny; a glint of metal reveals a key taped beneath it.<br><button onclick="takeItem(\'key\')">Take Key</button>';
               }
               break;
           case 'south':
               additionalText = 'A plain wall, its surface marred by faint cracks.';
               roomState.searchStatus.southwall = roomState.searchStatus.southwall || 'pending';
               if (state.inventory.includes('UV Light')) {
-                  additionalText += '<br><br><button onclick="useUV(\'southwall\')">Use UV On South Wall</button>';
+                  additionalText += '<br><button onclick="useUV(\'southwall\')">Use UV On South Wall</button>';
               }
               break;
           case 'west':
               additionalText = 'An enormous painting looms, its dark canvas swallowing the light.';
               roomState.searchStatus.painting = roomState.searchStatus.painting || 'pending';
               if (roomState.inspected.painting && !roomState.inspected.lock) {
-                  additionalText = 'A knight on horseback, its frame heavy and immovable.<br><br><button onclick="inspect(\'lock\')">Inspect Lock</button>';
+                  additionalText = 'A knight on horseback, its frame heavy and immovable.<br><button onclick="inspect(\'lock\')">Inspect Lock</button>';
               } else if (roomState.inspected.lock && !roomState.unlockedPainting) {
                   additionalText = 'A heavy lock secures the painting to the wall.';
                   if (state.inventory.includes('Key')) {
-                      additionalText += '<br><br><button onclick="useKeyOnLock()">Use Key On Lock</button>';
+                      additionalText += '<br><button onclick="useKeyOnLock()">Use Key On Lock</button>';
                   }
               } else if (roomState.unlockedPainting && !roomState.inspected.numpad) {
                   additionalText = 'The lock is open, revealing a numpad.<br><button onclick="inspect(\'numpad\')">Inspect Numpad</button>';
               } else if (roomState.inspected.numpad) {
-                  additionalText = 'A digital numpad, awaiting an eight-digit code.<br><br><button onclick="enterCode()">Enter Code</button>';
+                  additionalText = 'A digital numpad, awaiting an eight-digit code.<br><button onclick="enterCode()">Enter Code</button>';
               }
               break;
         }
@@ -274,21 +442,19 @@
               roomState.searchStatus.southwall = 'inspected';
               break;
             case 'chair':
-              roomState.searchStatus.chair = null;
               if (roomState.searchStatus.chair === 'pending') {
                 text = 'The chair creaks as you inspect it, revealing a key taped beneath.<br><button id="takeKeyButton" aria-label="Take Key">Take Key</button>';
                 roomState.searchStatus.chair = 'inspected';
               } else if (roomState.searchStatus.chair === 'inspected' && !state.inventory.includes('key')) {
-                text = 'The key remains taped under the chair.<br><br><button id="takeKeyButton" aria-label="Take Key">Take Key</button>';
+                text = 'The key remains taped under the chair.<br><button id="takeKeyButton" aria-label="Take Key">Take Key</button>';
               } else {
                 text = 'The chair is empty now, its secrets taken.';
                 roomState.searchStatus.chair = 'cleared';
               }
               break;
             case 'table':
-              roomState.searchStatus.table = null;
               if (roomState.searchStatus.table === 'pending') {
-                text = 'The table’s surface holds a crumpled note and a UV light.<br><br><button id="readNoteButton" aria-label="Read Note">Read Note</button><br><br><button id="takeUVLightButton" aria-label="Take UV Light">Take UV Light</button>';
+                text = 'The table’s surface holds a crumpled note and a UV light.<br><button id="readNoteButton" aria-label="Read Note">Read Note</button><br><button id="takeUVLightButton" aria-label="Take UV Light">Take UV Light</button>';
                 roomState.searchStatus.table = 'inspected';
               } else if (!state.notes.includes('Three is a magic number.') || !state.inventory.includes('uvlight')) {
                 if (!state.notes.includes('Three is a magic number.')) {
@@ -588,3 +754,6 @@
       const moveSouthButton = document.getElementById('moveSouth');
       if (moveSouthButton) moveSouthButton.addEventListener('click', () => move('south'));
     });
+  </script>
+</body>
+</html>
