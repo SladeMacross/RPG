@@ -1,6 +1,6 @@
 # CLAUDE.md — Click Game (working title: Escape The Room)
 
-Last updated: 2026-10-06
+Last updated: 2026-10-07
 
 ## What the game is
 
@@ -32,12 +32,26 @@ open `index.html`. Opening the file directly also works.
 - Final: 1 unlockable 10th level (unlocked by completing both bonus levels)
 
 ### Painting sequence (each painting = a chess piece as a fantasy character, same castle backdrop)
-- Level 1: Pawn — small soldier, short sword and small shield, undersized, big castle behind
-- Level 2 / Hallway 1: Rook — massive armored soldier with a lance (exact placement TBD: room vs hallway)
+Order decided 2026-10-07: Pawn → Knight → Bishop → Rook → Queen → King. This is both
+ascending piece value (1, 3, 3, 5, 9, priceless) and classic opening development
+order (pawns, knights before bishops, castle the rook, queen, king last). Never
+explained to the player — a quiet reward for chess players.
+- Level 1: Pawn — small soldier, short sword and shield, undersized, big castle behind
+- Level 2: Knight — armored rider on a large armored horse (image exists: `images/room2.jpg`)
 - Level 3: Bishop — tall mage in a dark cloak
-- Level 4: Knight — armored rider on a large armored horse
+- Level 4: Rook — massive armored soldier with a lance
 - Level 5: Queen
 - Level 6: King
+
+### Puzzle theme per level (SUGGESTIONS, not decided)
+Each level's main puzzle can echo how its painting's piece moves, which keeps
+every puzzle distinct (design principle 5):
+- L1 Pawn: small, simple steps forward (built).
+- L2 Knight: L-shaped jumps — the library bookshelf (planned).
+- L3 Bishop: diagonals only — light beams, or tiles crossable only diagonally.
+- L4 Rook: straight lines — sliding blocks or a straight-line corridor maze.
+- L5 Queen: the 8-queens puzzle — place 8 so none can attack another.
+- L6 King: one careful step at a time, never into danger — the room before the Captor.
 
 ### Level 1 — The Concrete Cell (BUILT, playable in browser)
 - Facing north at start. Objects: chair + table (east), north wall, south wall, painting (west).
@@ -66,6 +80,8 @@ open `index.html`. Opening the file directly also works.
 - `room2` exists in game.js as an intro + "To be continued..." with no objects.
 - Planned: large room, bookshelf covering a wall; puzzle = pull books in a chess
   knight's L-shaped move pattern; bookshelf swings open to a hidden hallway.
+- Painting: the Knight (push 'knight' to `state.paintingsSeen` on first inspect,
+  add a persistent note, as room1 does for the pawn).
 - Chess piece + board position collectible (optional meta-puzzle).
 
 ### Hallway 1 (NOT BUILT) — behind the bookshelf; locked door (puzzle TBD); maybe an enemy.
@@ -124,8 +140,8 @@ open `index.html`. Opening the file directly also works.
 - Scene image: `images/<roomId>_<facing>.jpg`. Missing images show a dark
   "No image yet" placeholder (generated in JS).
 - Existing images: room1_north, room1_east, room1_south, room1_west.
-- `images/room2.jpg` is the OLD knight-on-horseback painting (not loaded by the game —
-  wrong naming). Kept as a candidate for the Level 4 Knight painting.
+- `images/room2.jpg` is the Knight painting for Level 2. Not loaded yet: when the
+  library is built, rename it to `room2_<facing>.jpg` for whichever wall holds it.
 
 ## Next steps (priority order)
 
