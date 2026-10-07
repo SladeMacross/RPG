@@ -32,3 +32,50 @@ button:hover {
 .hidden {
     display: none;
 }
+button:disabled {
+  background-color: #555;
+  cursor: default;
+}
+#loadmenu button {
+  display: block;
+  margin-bottom: 8px;
+}
+#inspectActions button,
+#actions button,
+#notes button,
+#inventory button {
+  display: block;
+  width: 100%;
+  margin-bottom: 6px;
+  text-align: left;
+}
+#actions:not(:empty) {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #555;
+}
+#codeInput {
+  box-sizing: border-box;
+  width: 100%;
+  margin-bottom: 6px;
+  padding: 6px;
+  background-color: #111;
+  color: #e0e0e0;
+  border: 1px solid #555;
+  font-family: monospace;
+  font-size: 1.1em;
+  letter-spacing: 2px;
+}
+.wall-words {
+  margin-top: 6px;
+  font-family: monospace;
+  font-size: 1.2em;
+  letter-spacing: 2px;
+}
+.cipher {
+  display: grid;
+  grid-template-columns: repeat(13, auto);
+  gap: 2px 10px;
+  margin-top: 6px;
+  font-family: monospace;
+}

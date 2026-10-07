@@ -1,590 +1,449 @@
+// Click Game — browser version. All game logic lives in this file.
+document.addEventListener('DOMContentLoaded', () => {
+  const SAVE_VERSION = 3;
+  const SAVE_SLOTS = [1, 2, 3];
+  const DIRS = ['north', 'east', 'south', 'west'];
+  const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const NOTE_TEXT = 'Three is the magic number.';
 
-    document.addEventListener('DOMContentLoaded', () => {
-      let state = {};
-      const rooms = {
-        room1: {
-          id: 'room1',
-          name: 'Concrete Cell',
-          description: `Your head throbs as you awaken on a cold, gritty floor. The air is stale, and the faint buzz of flickering fluorescent lights overhead grates on your nerves. As your vision clears, you find yourself in a windowless concrete cell, its walls closing in\nlike a trap. There’s a rickety chair and a wobbly table to the east, an enormous painting dominating the west wall, and plain walls to the north and south. You’re facing north, and the silence is oppressive.`,
-          objects: {
-            north: ['northwall'],
-            east: ['chair', 'table'],
-            south: ['southwall'],
-            west: ['painting', 'lock', 'numpad']
-          },
-          exits: {
-            north: { destination: null, locked: true, unlockCondition: 'escaped' },
-            east: { destination: null, locked: true, unlockCondition: 'escaped' },
-            south: { destination: null, locked: true, unlockCondition: 'escaped' },
-            west: { destination: 'room2', locked: true, unlockCondition: 'escaped' }
-          },
-          initialSearchStatus: {
-            chair: 'pending',
-            table: 'pending',
-            painting: 'pending',
-            lock: 'pending',
-            numpad: 'pending',
-            northwall: 'pending',
-            southwall: 'pending'
-          },
-          hint: 'Try using the UV Light on the walls.'
-        },
-        room2: {
-          id: 'room2',
-          name: 'Study',
-          description: 'You step into a study.',
-          objects: {
-            north: [],
-            east: [],
-            south: [],
-            west: []
-          },
-          exits: {
-            north: { destination: null, locked: false, unlockCondition: null },
-            east: { destination: null, locked: true, unlockCondition: null },
-            south: { destination: null, locked: false, unlockCondition: null },
-            west: { destination: null, locked: true, unlockCondition: null }
-          },
-        }
-      };
+  const ITEMS = {
+    key: { name: 'Key', description: 'A small, tarnished key, cold to the touch.' },
+    uvlight: { name: 'UV Light', description: 'A handheld UV light. It can reveal writing invisible to the naked eye.' }
+  };
 
-      function initRoomState(roomId) {
-        const room = rooms[roomId];
-        const roomState = {
-          inspected: {},
-          searchStatus: {},
-          unlockedPainting: false,
-          escaped: false
-        };
-        if (roomId === 'room1') {
-          roomState.words = Array(4).fill().map(() => Array(8).fill().map(() => String.fromCharCode(97 + Math.floor(Math.random() * 26))).join('').toUpperCase());
-          roomState.mapping = {};
-          'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(l => {
-            roomState.mapping[l] = Math.floor(Math.random() * 99) + 1;
-          });
-          roomState.code = roomState.words.map(w => w[2]).map(l => roomState.mapping[l].toString().padStart(2, '0')).join('');
-        }
-        return roomState;
-      }
+  let state = null;
 
-      function startNew() {
-        document.getElementById('menu').classList.add('hidden');
-        document.getElementById('game').classList.remove('hidden');
-        state = {
-          currentRoom: 'room1',
-          inventory: [],
-          notes: [],
-          persistentNotes: [],
-          roomStates: {},
-          facing: 'north',
-          faced: { north: true, east: false, south: false, west: false }
-        };
-        state.roomStates['room1'] = initRoomState('room1');
-        state.roomStates['room1'].searchStatus.northwall = 'pending';
-        updateMessage(rooms[state.currentRoom].description);
-        updateUI();
-      }
+  // ---------- Helpers ----------
 
-      function showLoad() {
-        document.getElementById('menu').classList.add('hidden');
-        document.getElementById('loadmenu').classList.remove('hidden');
-      }
+  const $ = id => document.getElementById(id);
+  const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+  const btn = (label, action, arg = '') => `<button data-action="${action}" data-arg="${arg}">${label}</button>`;
+  const randomInt = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
+  const room = () => rooms[state.currentRoom];
+  const roomState = () => state.roomStates[state.currentRoom];
+  const has = item => state.inventory.includes(item);
 
-      function load(slot) {
-        let saved = localStorage.getItem('save' + slot);
-        if (saved) {
-          state = JSON.parse(saved);
-          document.getElementById('loadmenu').classList.add('hidden');
-          document.getElementById('game').classList.remove('hidden');
-          updateMessage(`Game loaded from slot ${slot}. You are in the ${rooms[state.currentRoom].name}.`);
-          updateUI();
-        } else {
-          alert('No save in slot ' + slot);
-        }
-      }
+  function shuffle(list) {
+    for (let i = list.length - 1; i > 0; i--) {
+      const j = randomInt(0, i);
+      [list[i], list[j]] = [list[j], list[i]];
+    }
+    return list;
+  }
 
-      function save(slot) {
-        localStorage.setItem('save' + slot, JSON.stringify(state));
-        alert('Saved to slot ' + slot);
-      }
+  function addNote(text, persistent = false) {
+    const list = persistent ? state.persistentNotes : state.notes;
+    if (!list.includes(text)) list.push(text);
+  }
 
-      function updateMessage(text) {
-        const messageElement = document.getElementById('message');
-        if (messageElement) {
-          messageElement.innerHTML = text.replace(/\n/g, '<br>');
-        }
-      }
+  function say(html) {
+    $('message').innerHTML = html;
+  }
 
-      function turn(dir) {
-      const room = rooms[state.currentRoom];
-      const roomState = state.roomStates[state.currentRoom];
-      state.facing = dir;
-      state.faced[dir] = true;
-      let currentMessage = ``;
-      let additionalText = '';
-      switch (dir) {
-          case 'north':
-              additionalText = 'A bare concrete wall, cold and unyielding.';
-              roomState.searchStatus.northwall = roomState.searchStatus.northwall || 'pending';
-              if (state.inventory.includes('UV Light')) {
-                  additionalText += '<br><br><button onclick="useUV(\'northwall\')">Use UV On North Wall</button>';
-              }
-              break;
-          case 'east':
-              additionalText = 'A rickety chair teeters beside a wobbly table, both caked in dust.';
-              roomState.searchStatus.chair = null;
-              roomState.searchStatus.table = null;
-              roomState.searchStatus.chair = roomState.searchStatus.chair || 'pending';
-              roomState.searchStatus.table = roomState.searchStatus.table || 'pending';
-              if (roomState.searchStatus.table === 'inspected') {
-                  if (!state.notes.includes('Three is a magic number.')) {
-                      additionalText = 'A crumpled note lies on the table, barely legible.<br><button onclick="readNote()">Read Note</button>';
-                      if (!state.inventory.includes('uvlight')) {
-                          additionalText += '<br>A dusty UV light rests on the table, faintly humming.<br><br><button onclick="takeItem(\'uvlight\')">Take UV Light</button>';
-                      }
-                  } else if (!state.inventory.includes('uvlight')) {
-                      additionalText = 'A dusty UV light rests on the table, faintly humming.<br><br><button onclick="takeItem(\'uvlight\')">Take UV Light</button>';
-                  } else {
-                      additionalText = 'The table holds no further secrets.';
-                  }
-              } else if (roomState.searchStatus.chair === 'inspected' && !state.inventory.includes('key')) {
-                  additionalText = 'The chair creaks under scrutiny; a glint of metal reveals a key taped beneath it.<br><br><button onclick="takeItem(\'key\')">Take Key</button>';
-              }
-              break;
-          case 'south':
-              additionalText = 'A plain wall, its surface marred by faint cracks.';
-              roomState.searchStatus.southwall = roomState.searchStatus.southwall || 'pending';
-              if (state.inventory.includes('UV Light')) {
-                  additionalText += '<br><br><button onclick="useUV(\'southwall\')">Use UV On South Wall</button>';
-              }
-              break;
+  function showScreen(id) {
+    ['menu', 'loadmenu', 'game'].forEach(screen => $(screen).classList.toggle('hidden', screen !== id));
+  }
+
+  // ---------- Level 1 puzzle ----------
+  // Each letter gets a unique number 01–26, shown on the wall as two digits.
+  // The code is the cipher number for the 3rd letter of each of the 3 words: always 6 digits.
+
+  function generateCellPuzzle() {
+    const numbers = shuffle(Array.from({ length: 26 }, (_, i) => i + 1));
+    const cipher = {};
+    [...LETTERS].forEach((letter, i) => { cipher[letter] = String(numbers[i]).padStart(2, '0'); });
+    const words = Array.from({ length: 3 }, () =>
+      Array.from({ length: randomInt(5, 8) }, () => LETTERS[randomInt(0, 25)]).join(''));
+    const code = words.map(word => cipher[word[2]]).join('');
+    return { words, cipher, code };
+  }
+
+  // ---------- Rooms ----------
+  // Each room defines:
+  //   createState()          fresh per-room state
+  //   view(s, dir)           text shown when turning to face a direction
+  //   inspectables(s, dir)   [objectId, button label] pairs available right now while facing dir
+  //   inspect[objectId](s)   returns the message for inspecting that object
+  //                          (s.searched[objectId] counts inspections: a 2nd look can find hidden things)
+  //   actions(s, dir)        HTML for context actions (take, use, enter code...)
+  //   handlers[action](s,a)  room-specific actions; return the message to show
+  //   status(s)              [label, status] rows for the Search Status panel
+  //   exits[dir]             destination room, open once s.solved is true
+
+  const rooms = {
+    room1: {
+      name: 'Concrete Cell',
+      intro: 'Your head throbs as you awaken on a cold, gritty floor. The air is stale, and the faint buzz of flickering fluorescent lights overhead grates on your nerves. As your vision clears, you find yourself in a windowless concrete cell. There’s a rickety chair and a wobbly table to the east, an enormous painting covering the west wall, and plain walls to the north and south.<br><br>You’re facing north.',
+      hints: [
+        'Look more closely: some things need to be searched more than once.',
+        'The UV light might reveal hidden secrets written on the walls.',
+        'Take the third letter of each word and find its number in the code on the other wall. Enter the numbers in order.'
+      ],
+      exits: { west: 'room2' },
+
+      createState: () => ({
+        ...generateCellPuzzle(),
+        searched: {},
+        taken: {},
+        revealed: {},
+        noteRead: false,
+        paintingOpen: false,
+        solved: false
+      }),
+
+      view(s, dir) {
+        switch (dir) {
+          case 'north': return 'A bare concrete wall, cold and unyielding.';
+          case 'east': return 'A rickety chair and a wobbly table, both caked in dust.';
+          case 'south': return 'A plain concrete wall, its surface marred by faint cracks.';
           case 'west':
-              additionalText = 'An enormous painting looms, its dark canvas swallowing the light.';
-              roomState.searchStatus.painting = roomState.searchStatus.painting || 'pending';
-              if (roomState.inspected.painting && !roomState.inspected.lock) {
-                  additionalText = 'A knight on horseback, its frame heavy and immovable.<br><br><button onclick="inspect(\'lock\')">Inspect Lock</button>';
-              } else if (roomState.inspected.lock && !roomState.unlockedPainting) {
-                  additionalText = 'A heavy lock secures the painting to the wall.';
-                  if (state.inventory.includes('Key')) {
-                      additionalText += '<br><br><button onclick="useKeyOnLock()">Use Key On Lock</button>';
-                  }
-              } else if (roomState.unlockedPainting && !roomState.inspected.numpad) {
-                  additionalText = 'The lock is open, revealing a numpad.<br><button onclick="inspect(\'numpad\')">Inspect Numpad</button>';
-              } else if (roomState.inspected.numpad) {
-                  additionalText = 'A digital numpad, awaiting an eight-digit code.<br><br><button onclick="enterCode()">Enter Code</button>';
-              }
-              break;
+            if (s.solved) return 'The hidden door stands open. The way west is clear.';
+            if (s.paintingOpen) return 'The painting hangs open on its hinges. Behind it is a door with a number pad.';
+            return 'An enormous painting covers the entire wall.';
         }
-        updateMessage(additionalText);
-        updateUI();
+      },
 
-        // Add event listeners for dynamically created buttons
-        const takeKeyButton = document.getElementById('takeKeyButton');
-        if (takeKeyButton) takeKeyButton.addEventListener('click', () => takeItem('key'));
-        const readNoteButton = document.getElementById('readNoteButton');
-        if (readNoteButton) readNoteButton.addEventListener('click', readNote);
-        const takeUVLightButton = document.getElementById('takeUVLightButton');
-        if (takeUVLightButton) takeUVLightButton.addEventListener('click', () => takeItem('uvlight'));
-      }
-
-      function move(dir) {
-        const room = rooms[state.currentRoom];
-        const roomState = state.roomStates[state.currentRoom];
-        if (state.currentRoom === 'room1') {
-          updateMessage(`You can’t move in any direction.`);
-          return;
-        }
-        const exit = room.exits[dir];
-        if (!exit || (exit.locked && !roomState[exit.unlockCondition])) {
-          updateMessage(`You can’t go ${dir}. The path is blocked.`);
-          return;
-        }
-        const newRoom = exit.destination;
-        if (newRoom) {
-          if (state.currentRoom === 'room1') {
-            state.notes = [];
-          }
-          state.currentRoom = newRoom;
-          if (!state.roomStates[newRoom]) {
-            state.roomStates[newRoom] = initRoomState(newRoom);
-          }
-          state.facing = 'north';
-          state.faced = { north: true, east: false, south: false, west: false };
-          if (newRoom === 'room2') {
-            state.roomStates[newRoom].searchStatus.darkness = 'pending';
-          }
-          updateMessage(`You move ${dir} into the ${rooms[newRoom].name}.<br><br>${rooms[newRoom].description}`);
-          updateUI();
-        } else {
-          updateMessage(`No path leads ${dir} from here.`);
-        }
-      }
-
-      function inspect(obj) {
-        const room = rooms[state.currentRoom];
-        const roomState = state.roomStates[state.currentRoom];
-        if (roomState.escaped) return;
-        let text = '';
-        let canInspect = room.objects[state.facing].includes(obj);
-        if (!canInspect) {
-          updateMessage(`You cannot inspect ${obj} while facing ${state.facing}.`);
-          return;
-        }
-        if (state.currentRoom === 'room1') {
-          switch (obj) {
-            case 'painting':
-              if (!roomState.inspected.painting) {
-                text = 'The painting portrays a knight in gleaming armor, but a lock on the frame catches your eye.';
-                roomState.inspected.painting = true;
-                roomState.searchStatus.painting = 'inspected';
-                roomState.searchStatus.lock = roomState.searchStatus.lock || 'pending';
-                state.persistentNotes.push('A painting of a knight on horseback.');
-              } else {
-                text = 'The painting’s knight stares back, but you’ve seen its secrets.';
-              }
-              break;
-            case 'lock':
-              if (!roomState.inspected.lock && roomState.inspected.painting) {
-                text = 'A simple key lock holds the painting fast. A key might open it.';
-                roomState.inspected.lock = true;
-                roomState.searchStatus.lock = 'inspected';
-              } else if (!roomState.inspected.painting) {
-                text = 'You haven’t noticed anything to lock yet.';
-              } else {
-                text = 'The lock remains, unyielding unless you have the key.';
-              }
-              break;
-            case 'numpad':
-              if (!roomState.inspected.numpad && roomState.unlockedPainting) {
-                text = 'A number pad, its buttons worn but functional, awaits the correct code.';
-                roomState.inspected.numpad = true;
-                roomState.searchStatus.numpad = 'inspected';
-              } else if (!roomState.unlockedPainting) {
-                text = 'No number pad is visible yet.';
-              } else {
-                text = 'The number pad hums softly, waiting for your input.';
-              }
-              break;
-            case 'northwall':
-              text = 'The north wall is cold and featureless, offering no clues.';
-              roomState.searchStatus.northwall = 'inspected';
-              break;
-            case 'southwall':
-              text = 'Cracks spiderweb across the south wall, but it reveals nothing more.';
-              roomState.searchStatus.southwall = 'inspected';
-              break;
-            case 'chair':
-              roomState.searchStatus.chair = null;
-              if (roomState.searchStatus.chair === 'pending') {
-                text = 'The chair creaks as you inspect it, revealing a key taped beneath.<br><button id="takeKeyButton" aria-label="Take Key">Take Key</button>';
-                roomState.searchStatus.chair = 'inspected';
-              } else if (roomState.searchStatus.chair === 'inspected' && !state.inventory.includes('key')) {
-                text = 'The key remains taped under the chair.<br><br><button id="takeKeyButton" aria-label="Take Key">Take Key</button>';
-              } else {
-                text = 'The chair is empty now, its secrets taken.';
-                roomState.searchStatus.chair = 'cleared';
-              }
-              break;
-            case 'table':
-              roomState.searchStatus.table = null;
-              if (roomState.searchStatus.table === 'pending') {
-                text = 'The table’s surface holds a crumpled note and a UV light.<br><br><button id="readNoteButton" aria-label="Read Note">Read Note</button><br><br><button id="takeUVLightButton" aria-label="Take UV Light">Take UV Light</button>';
-                roomState.searchStatus.table = 'inspected';
-              } else if (!state.notes.includes('Three is a magic number.') || !state.inventory.includes('uvlight')) {
-                if (!state.notes.includes('Three is a magic number.')) {
-                  text = 'A note remains on the table.<br><button id="readNoteButton" aria-label="Read Note">Read Note</button>';
-                }
-                if (!state.inventory.includes('uvlight')) {
-                  text += (text ? '<br>' : '') + 'The UV light hums faintly on the table.<br><button id="takeUVLightButton" aria-label="Take UV Light">Take UV Light</button>';
-                }
-              } else {
-                text = 'The table is bare, its treasures claimed.';
-                roomState.searchStatus.table = 'cleared';
-              }
-              break;
-          }
-        } else if (state.currentRoom === 'room2') {
-          switch (obj) {
-            case 'darkness':
-              text = 'The darkness is impenetrable, but you sense something beyond.';
-              roomState.searchStatus.darkness = 'inspected';
-              break;
-            case 'door':
-              text = 'A simple door leading back to the cell.';
-              roomState.searchStatus.door = 'inspected';
-              break;
+      inspectables(s, dir) {
+        switch (dir) {
+          case 'north': return [['northWall', 'Inspect North Wall']];
+          case 'east': return [['chair', 'Inspect Chair'], ['table', 'Inspect Table']];
+          case 'south': return [['southWall', 'Inspect South Wall']];
+          case 'west': {
+            const list = [['painting', 'Inspect Painting']];
+            if (s.searched.painting && !s.paintingOpen) list.push(['lock', 'Inspect Lock']);
+            if (s.paintingOpen) list.push(['numpad', 'Inspect Number Pad']);
+            return list;
           }
         }
-        updateMessage(`` + text);
-        updateUI();
+      },
 
-        // Add event listeners for dynamically created buttons
-        const takeKeyButton = document.getElementById('takeKeyButton');
-        if (takeKeyButton) takeKeyButton.addEventListener('click', () => takeItem('key'));
-        const readNoteButton = document.getElementById('readNoteButton');
-        if (readNoteButton) readNoteButton.addEventListener('click', readNote);
-        const takeUVLightButton = document.getElementById('takeUVLightButton');
-        if (takeUVLightButton) takeUVLightButton.addEventListener('click', () => takeItem('uvlight'));
-      }
-
-      function takeItem(item) {
-        const room = rooms[state.currentRoom];
-        const roomState = state.roomStates[state.currentRoom];
-        if (!state.inventory.includes(item)) {
-          state.inventory.push(item);
-          roomState.searchStatus[item === 'uvlight' ? 'table' : 'chair'] = 'cleared';
-          updateMessage(`You took the ${item === 'uvlight' ? 'UV Light' : item}.`);
-          updateUI();
+      // The chair and table hide their items: the first look finds only the surface,
+      // the second look finds what's beneath.
+      inspect: {
+        northWall() {
+          return 'It’s just a blank wall.';
+        },
+        southWall() {
+          return 'It’s just a blank wall, aside from a few cracks.';
+        },
+        chair(s) {
+          if (s.searched.chair === 1) return 'There is nothing on top of the chair.';
+          if (s.searched.chair === 2) return 'You look more closely. Taped to the underside of the seat is a small key.';
+          return s.taken.key ? 'You’ve searched the chair thoroughly. There’s nothing else.' : 'The key is still taped beneath the seat.';
+        },
+        table(s) {
+          if (s.searched.table === 1) return 'You find a crumpled note on top of the table.';
+          if (s.searched.table === 2) return 'You crouch and look beneath the table. A UV light is wedged against the underside.';
+          return s.taken.uvlight ? 'You’ve searched the table thoroughly. There’s nothing else.' : 'The UV light is still wedged beneath the table.';
+        },
+        painting(s) {
+          if (!state.paintingsSeen.includes('pawn')) state.paintingsSeen.push('pawn');
+          addNote('Painting: a small soldier with a short sword and shield before a great castle.', true);
+          if (s.paintingOpen) return 'The painting hangs open on its hinges, revealing a door with a number pad.';
+          return 'The painting shows a small soldier with a short sword and a small shield. He looks undersized, almost too small for the canvas, and behind him rises an enormous fantasy castle.<br><br>There is a lock on the wooden frame.';
+        },
+        lock() {
+          return 'A heavy iron lock holds the frame shut against the wall. It needs a key.';
+        },
+        numpad() {
+          return 'A number pad with ten worn buttons and a small display with room for six digits.';
         }
-      }
+      },
 
-      function readNote() {
-        const room = rooms[state.currentRoom];
-        const roomState = state.roomStates[state.currentRoom];
-        if (!state.notes.includes('Three is a magic number.')) {
-          state.notes.push('Three is a magic number.');
-          if (state.inventory.includes('uvlight')) {
-            roomState.searchStatus.table = 'cleared';
+      actions(s, dir) {
+        if (s.solved) return '';
+        const out = [];
+        if (dir === 'east') {
+          if (s.searched.chair >= 2 && !s.taken.key) out.push(btn('Take Key', 'take', 'key'));
+          if (s.searched.table && !s.noteRead) out.push(btn('Read Note', 'readNote'));
+          if (s.searched.table >= 2 && !s.taken.uvlight) out.push(btn('Take UV Light', 'take', 'uvlight'));
+        }
+        if ((dir === 'north' || dir === 'south') && has('uvlight')) {
+          out.push(btn('Use UV Light on Wall', 'useUV'));
+        }
+        if (dir === 'west') {
+          if (s.searched.lock && !s.paintingOpen && has('key')) out.push(btn('Use Key on Lock', 'useKey'));
+          if (s.searched.numpad && !s.solved) {
+            out.push('<input id="codeInput" type="text" inputmode="numeric" maxlength="6" placeholder="Enter code" aria-label="Number pad code">');
+            out.push(btn('Enter Code', 'submitCode'));
           }
-          updateMessage(`You read the note: "Three is a magic number."`);
-          updateUI();
-        } else {
-          updateMessage(`The note still reads: "Three is a magic number."`);
         }
-      }
+        return out.join('');
+      },
 
-      function inspectItem(item) {
-        const room = rooms[state.currentRoom];
-        const roomState = state.roomStates[state.currentRoom];
-        if (roomState.escaped) return;
-        let text = '';
-        switch (item) {
-          case 'key': text = 'A small, tarnished key, cold to the touch.'; break;
-          case 'uvlight': text = 'A handheld UV light, its faint hum promising hidden truths.'; break;
-        }
-        updateMessage(`` + text);
-      }
-
-      function useUV(wall) {
-        const room = rooms[state.currentRoom];
-        const roomState = state.roomStates[state.currentRoom];
-        if (!state.inventory.includes('uvlight')) {
-          updateMessage(`You don't have the UV light.`);
-          return;
-        }
-        let text = '';
-        let mapStr = '';
-        if (wall === 'northwall' && state.facing === 'north') {
-          text = 'The UV light hums as it reveals cryptic words scrawled on the north wall: ' + roomState.words.join(' ');
-          let northNote = 'North Wall: ' + roomState.words.join(' ');
-          if (!state.notes.includes(northNote)) {
-            state.notes.push(northNote);
+      handlers: {
+        readNote(s) {
+          s.noteRead = true;
+          addNote(NOTE_TEXT);
+          return `You read the note. It says: “${NOTE_TEXT}”`;
+        },
+        useUV(s) {
+          if (state.facing === 'north') {
+            s.revealed.northWall = true;
+            addNote('North wall: ' + s.words.join(' '));
+            return 'You shine the UV light across the north wall. Words glow into view:' +
+              `<div class="wall-words">${s.words.join('&nbsp;&nbsp;&nbsp;')}</div>`;
           }
-        } else if (wall === 'southwall' && state.facing === 'south') {
-          mapStr = Object.entries(roomState.mapping).map(([l, n]) => l + ':' + n).join(' ');
-          text = 'Under the UV light, the south wall glows with a coded map: ' + mapStr;
-          let southNote = 'South Wall: ' + mapStr;
-          if (!state.notes.includes(southNote)) {
-            state.notes.push(southNote);
-          }
-        } else {
-          text = `You cannot use the UV light on the ${wall} while facing ${state.facing}.`;
-        }
-        updateMessage(`` + text);
-        updateUI();
-      }
-
-      function useKeyOnLock() {
-        const room = rooms[state.currentRoom];
-        const roomState = state.roomStates[state.currentRoom];
-        if (state.inventory.includes('key') && roomState.inspected.lock && roomState.inspected.painting && state.facing === 'west') {
-          updateMessage(`The key turns smoothly in the lock, and the painting swings aside to reveal a hidden door with a glowing number pad.`);
-          roomState.unlockedPainting = true;
+          s.revealed.southWall = true;
+          addNote('South wall: ' + [...LETTERS].map(l => `${l}=${s.cipher[l]}`).join(' '));
+          return 'You shine the UV light across the south wall. A code glows into view:' +
+            `<div class="cipher">${[...LETTERS].map(l => `<span>${l} ${s.cipher[l]}</span>`).join('')}</div>`;
+        },
+        useKey(s) {
+          if (!has('key') || !s.searched.lock) return 'You can’t use that here.';
           state.inventory = state.inventory.filter(i => i !== 'key');
-          roomState.searchStatus.lock = 'cleared';
-          roomState.searchStatus.painting = 'cleared';
-          roomState.searchStatus.numpad = roomState.searchStatus.numpad || 'pending';
-          updateUI();
-        } else {
-          updateMessage(`You cannot use the key on the lock yet.`);
+          s.paintingOpen = true;
+          return 'The key turns in the lock. The painting swings open, revealing a hidden door with a number pad.';
+        },
+        submitCode(s) {
+          const input = $('codeInput');
+          const guess = (input ? input.value : '').replace(/\D/g, '');
+          if (!guess) return 'The number pad waits for a code.';
+          if (guess !== s.code) return `You enter ${guess}. The number pad buzzes. That is the wrong code.`;
+          s.solved = true;
+          return 'That was the correct code! You hear a loud <em>click</em> and the door swings open.<br><br>The way west is clear.';
         }
+      },
+
+      // The lock and number pad only join the list once discovered.
+      status(s) {
+        const n = s.searched;
+        const rows = [
+          ['Chair', !n.chair ? 'Unsearched' : s.taken.key ? 'Cleared' : n.chair >= 2 ? 'Item found' : 'Searched'],
+          ['Table', !n.table ? 'Unsearched'
+            : s.noteRead && s.taken.uvlight ? 'Cleared'
+            : n.table >= 2 && !s.taken.uvlight ? 'Item found'
+            : !s.noteRead ? 'Note found' : 'Searched'],
+          ['North Wall', s.revealed.northWall ? 'Revealed' : n.northWall ? 'Searched' : 'Unsearched'],
+          ['South Wall', s.revealed.southWall ? 'Revealed' : n.southWall ? 'Searched' : 'Unsearched'],
+          ['Painting', s.paintingOpen ? 'Opened' : n.painting ? 'Searched' : 'Unsearched']
+        ];
+        if (n.painting) rows.push(['Lock', s.paintingOpen ? 'Unlocked' : n.lock ? 'Searched' : 'Unsearched']);
+        if (s.paintingOpen) rows.push(['Number Pad', s.solved ? 'Solved' : n.numpad ? 'Searched' : 'Unsearched']);
+        return rows;
       }
+    },
 
-      function enterCode() {
-        const room = rooms[state.currentRoom];
-        const roomState = state.roomStates[state.currentRoom];
-        if (roomState.inspected.numpad && roomState.unlockedPainting && roomState.inspected.lock && roomState.inspected.painting && state.facing === 'west') {
-          let input = prompt('Enter the code:');
-          if (input && input.trim() === roomState.code) {
-            roomState.escaped = true;
-            Object.values(room.exits).forEach(exit => {
-              if (exit) exit.locked = false;
-            });
-            updateMessage(`The number pad beeps, and a hidden door grinds open. You’ve escaped the cell! You step through the western door...`);
-            alert('You escaped the cell!');
-            roomState.searchStatus.numpad = 'cleared';
-            move('west');
-          } else {
-            updateMessage(`Incorrect code. The pad buzzes angrily. Try again.`);
-            alert('Incorrect code. Try again.');
-          }
-          updateUI();
-        } else {
-          updateMessage(`You cannot enter a code yet.`);
-        }
-      }
+    // Level 2 — placeholder until the library and bookshelf puzzle are built.
+    room2: {
+      name: 'The Library',
+      intro: 'You step through the door into a vast room, far larger than the cell. One entire wall is a bookshelf, packed from floor to ceiling.<br><br><em>To be continued...</em>',
+      hints: [],
+      exits: {},
+      createState: () => ({ searched: {}, solved: false }),
+      view: (s, dir) => dir === 'north'
+        ? 'A towering bookshelf covers the entire wall.'
+        : 'Dim lamplight, dust, and silence.',
+      inspectables: () => [],
+      inspect: {},
+      actions: () => '',
+      handlers: {},
+      status: () => []
+    }
+  };
 
-      function showHint() {
-        updateMessage(rooms[state.currentRoom].hint || 'No hint available.');
-      }
+  // ---------- Core actions ----------
 
-      function showNote(i) {
-        const room = rooms[state.currentRoom];
-        const allNotes = [...state.persistentNotes, ...state.notes];
-        updateMessage(`` + allNotes[i]);
-      }
+  function startNew() {
+    state = {
+      currentRoom: null,
+      facing: 'north',
+      inventory: [],
+      notes: [],            // cleared when leaving a room
+      persistentNotes: [],  // kept for the whole game (paintings)
+      paintingsSeen: [],    // order paintings were first inspected
+      roomStates: {},
+      hintsUsed: {}
+    };
+    showScreen('game');
+    enterRoom('room1');
+  }
 
-      function updateUI() {
-        const room = rooms[state.currentRoom];
-        const roomState = state.roomStates[state.currentRoom];
-        const facingDirection = document.getElementById('facingDirection');
-        if (facingDirection) {
-          facingDirection.textContent = state.facing.charAt(0).toUpperCase() + state.facing.slice(1);
-        }
-        let aHTML = '';
-        if (state.currentRoom === 'room1') {
-          if (!roomState.escaped && state.inventory.includes('uvlight')) {
-            if (state.facing === 'north') aHTML += '<button id="useUVNorth" aria-label="Use UV Light on North Wall">Use UV On North Wall</button> ';
-            if (state.facing === 'south') aHTML += '<button id="useUVSouth" aria-label="Use UV Light on South Wall">Use UV On South Wall</button> ';
-          }
-          if (!roomState.escaped && roomState.inspected.lock && roomState.inspected.painting && state.inventory.includes('key') && state.facing === 'west') {
-            aHTML += '<button id="useKeyOnLock" aria-label="Use Key on Lock">Use Key On Lock</button> ';
-          }
-          if (!roomState.escaped && roomState.inspected.numpad && roomState.unlockedPainting && roomState.inspected.lock && roomState.inspected.painting && state.facing === 'west') {
-            aHTML += '<button id="enterCodeButton" aria-label="Enter Code">Enter Code</button>';
-          }
-        }
-        const actionsElement = document.getElementById('actions');
-        if (actionsElement) actionsElement.innerHTML = aHTML;
+  function enterRoom(id) {
+    state.currentRoom = id;
+    state.facing = 'north';
+    state.notes = [];
+    if (!state.roomStates[id]) state.roomStates[id] = rooms[id].createState();
+    say(rooms[id].intro);
+    render();
+  }
 
-        // Add event listeners for action buttons
-        const useUVNorth = document.getElementById('useUVNorth');
-        if (useUVNorth) useUVNorth.addEventListener('click', () => useUV('northwall'));
-        const useUVSouth = document.getElementById('useUVSouth');
-        if (useUVSouth) useUVSouth.addEventListener('click', () => useUV('southwall'));
-        const useKeyOnLockButton = document.getElementById('useKeyOnLock');
-        if (useKeyOnLockButton) useKeyOnLockButton.addEventListener('click', useKeyOnLock);
-        const enterCodeButton = document.getElementById('enterCodeButton');
-        if (enterCodeButton) enterCodeButton.addEventListener('click', enterCode);
+  function turn(dir) {
+    state.facing = dir;
+    say(room().view(roomState(), dir));
+    render();
+  }
 
-        let inspectHTML = '';
-        if (!roomState.escaped) {
-          if (state.currentRoom === 'room1') {
-            if (state.facing === 'north') {
-              inspectHTML = '<button id="inspectNorthWall" aria-label="Inspect North Wall">Inspect North Wall</button>';
-            } else if (state.facing === 'east') {
-              inspectHTML = '<button id="inspectChair" aria-label="Inspect Chair">Inspect Chair</button><br><button id="inspectTable" aria-label="Inspect Table">Inspect Table</button>';
-            } else if (state.facing === 'south') {
-              inspectHTML = '<button id="inspectSouthWall" aria-label="Inspect South Wall">Inspect South Wall</button>';
-            } else if (state.facing === 'west') {
-              inspectHTML = !roomState.inspected.painting ? '<button id="inspectPainting" aria-label="Inspect Painting">Inspect Painting</button>' :
-                           !roomState.inspected.lock ? '<button id="inspectLock" aria-label="Inspect Lock">Inspect Lock</button>' :
-                           roomState.unlockedPainting ? '<button id="inspectNumpad" aria-label="Inspect Number Pad">Inspect Number Pad</button>' : '';
-            }
-          } else if (state.currentRoom === 'room2') {
-            room.objects[state.facing].forEach(obj => {
-              inspectHTML += `<button id="inspect${obj.charAt(0).toUpperCase() + obj.slice(1)}" aria-label="Inspect ${obj.charAt(0).toUpperCase() + obj.slice(1)}">Inspect ${obj.charAt(0).toUpperCase() + obj.slice(1)}</button><br>`;
-            });
-          }
-        }
-        const inspectActionsElement = document.getElementById('inspectActions');
-        if (inspectActionsElement) inspectActionsElement.innerHTML = inspectHTML;
+  function move(dir) {
+    const dest = room().exits[dir];
+    if (!dest || !roomState().solved) {
+      say('You can’t go that way.');
+      return;
+    }
+    enterRoom(dest);
+  }
 
-        // Add event listeners for inspect buttons
-        const inspectNorthWall = document.getElementById('inspectNorthWall');
-        if (inspectNorthWall) inspectNorthWall.addEventListener('click', () => inspect('northwall'));
-        const inspectChair = document.getElementById('inspectChair');
-        if (inspectChair) inspectChair.addEventListener('click', () => inspect('chair'));
-        const inspectTable = document.getElementById('inspectTable');
-        if (inspectTable) inspectTable.addEventListener('click', () => inspect('table'));
-        const inspectSouthWall = document.getElementById('inspectSouthWall');
-        if (inspectSouthWall) inspectSouthWall.addEventListener('click', () => inspect('southwall'));
-        const inspectPainting = document.getElementById('inspectPainting');
-        if (inspectPainting) inspectPainting.addEventListener('click', () => inspect('painting'));
-        const inspectLock = document.getElementById('inspectLock');
-        if (inspectLock) inspectLock.addEventListener('click', () => inspect('lock'));
-        const inspectNumpad = document.getElementById('inspectNumpad');
-        if (inspectNumpad) inspectNumpad.addEventListener('click', () => inspect('numpad'));
-        const inspectDarkness = document.getElementById('inspectDarkness');
-        if (inspectDarkness) inspectDarkness.addEventListener('click', () => inspect('darkness'));
-        const inspectDoor = document.getElementById('inspectDoor');
-        if (inspectDoor) inspectDoor.addEventListener('click', () => inspect('door'));
+  function inspect(objectId) {
+    const r = room();
+    const s = roomState();
+    const available = r.inspectables(s, state.facing).some(([id]) => id === objectId);
+    if (!available) return;
+    s.searched[objectId] = (s.searched[objectId] || 0) + 1;
+    say(r.inspect[objectId](s));
+    render();
+  }
 
-        let sHTML = '';
-        Object.keys(roomState.searchStatus).forEach(key => {
-          sHTML += `${key.charAt(0).toUpperCase() + key.slice(1)}: ${roomState.searchStatus[key] || 'pending'}<br>`;
-        });
-        const searchStatusElement = document.getElementById('searchStatus');
-        if (searchStatusElement) searchStatusElement.innerHTML = sHTML;
+  function take(item) {
+    const s = roomState();
+    if (!ITEMS[item] || s.taken[item]) return;
+    s.taken[item] = true;
+    state.inventory.push(item);
+    say(`You take the ${ITEMS[item].name}.`);
+    render();
+  }
 
-        const allNotes = [...state.persistentNotes, ...state.notes];
-        const notesElement = document.getElementById('notes');
-        if (notesElement) {
-          notesElement.innerHTML = allNotes.length ? allNotes.map((n, i) => `<button id="note${i}" aria-label="View Note ${i + 1}">${n.substring(0, 27)}...</button>`).join('<br>') : 'No notes';
-          allNotes.forEach((_, i) => {
-            const noteButton = document.getElementById(`note${i}`);
-            if (noteButton) noteButton.addEventListener('click', () => showNote(i));
-          });
-        }
+  function inspectItem(item) {
+    if (ITEMS[item]) say(ITEMS[item].description);
+  }
 
-        const inventoryElement = document.getElementById('inventory');
-        if (inventoryElement) {
-          inventoryElement.innerHTML = state.inventory.length ? state.inventory.map((i, index) => `<button id="item${index}" aria-label="Inspect ${i === 'uvlight' ? 'UV Light' : 'Key'}">${i === 'uvlight' ? 'UV Light' : 'Key'}</button>`).join('<br>') : 'No items';
-          state.inventory.forEach((i, index) => {
-            const itemButton = document.getElementById(`item${index}`);
-            if (itemButton) itemButton.addEventListener('click', () => inspectItem(i));
-          });
-        }
-      }
+  function showNote(index) {
+    const notes = [...state.persistentNotes, ...state.notes];
+    if (notes[index]) say(notes[index]);
+  }
 
-      // Attach event listeners to static buttons
-      const newGameButton = document.getElementById('newGame');
-      if (newGameButton) newGameButton.addEventListener('click', startNew);
-      const loadGameButton = document.getElementById('loadGame');
-      if (loadGameButton) loadGameButton.addEventListener('click', showLoad);
-      const loadSlot1Button = document.getElementById('loadSlot1');
-      if (loadSlot1Button) loadSlot1Button.addEventListener('click', () => load(1));
-      const loadSlot2Button = document.getElementById('loadSlot2');
-      if (loadSlot2Button) loadSlot2Button.addEventListener('click', () => load(2));
-      const loadSlot3Button = document.getElementById('loadSlot3');
-      if (loadSlot3Button) loadSlot3Button.addEventListener('click', () => load(3));
-      const backToMenuButton = document.getElementById('backToMenu');
-      if (backToMenuButton) backToMenuButton.addEventListener('click', () => {
-        document.getElementById('loadmenu').classList.add('hidden');
-        document.getElementById('menu').classList.remove('hidden');
-      });
-      const saveSlot1Button = document.getElementById('saveSlot1');
-      if (saveSlot1Button) saveSlot1Button.addEventListener('click', () => save(1));
-      const saveSlot2Button = document.getElementById('saveSlot2');
-      if (saveSlot2Button) saveSlot2Button.addEventListener('click', () => save(2));
-      const saveSlot3Button = document.getElementById('saveSlot3');
-      if (saveSlot3Button) saveSlot3Button.addEventListener('click', () => save(3));
-      const hintButton = document.getElementById('hintButton');
-      if (hintButton) hintButton.addEventListener('click', showHint);
-      const turnNorthButton = document.getElementById('turnNorth');
-      if (turnNorthButton) turnNorthButton.addEventListener('click', () => turn('north'));
-      const turnWestButton = document.getElementById('turnWest');
-      if (turnWestButton) turnWestButton.addEventListener('click', () => turn('west'));
-      const turnEastButton = document.getElementById('turnEast');
-      if (turnEastButton) turnEastButton.addEventListener('click', () => turn('east'));
-      const turnSouthButton = document.getElementById('turnSouth');
-      if (turnSouthButton) turnSouthButton.addEventListener('click', () => turn('south'));
-      const moveNorthButton = document.getElementById('moveNorth');
-      if (moveNorthButton) moveNorthButton.addEventListener('click', () => move('north'));
-      const moveWestButton = document.getElementById('moveWest');
-      if (moveWestButton) moveWestButton.addEventListener('click', () => move('west'));
-      const moveEastButton = document.getElementById('moveEast');
-      if (moveEastButton) moveEastButton.addEventListener('click', () => move('east'));
-      const moveSouthButton = document.getElementById('moveSouth');
-      if (moveSouthButton) moveSouthButton.addEventListener('click', () => move('south'));
+  function showHint() {
+    const hints = room().hints;
+    const used = state.hintsUsed[state.currentRoom] || 0;
+    if (used >= hints.length) {
+      say(hints.length ? 'There are no more hints available.' : 'No hints available here.');
+      return;
+    }
+    state.hintsUsed[state.currentRoom] = used + 1;
+    say(`Hint ${used + 1} of ${hints.length}: ${hints[used]}`);
+  }
+
+  // ---------- Saving and loading ----------
+
+  const saveKey = slot => `clickgame_save_${slot}`;
+
+  function readSave(slot) {
+    try {
+      const data = JSON.parse(localStorage.getItem(saveKey(slot)));
+      return data && data.version === SAVE_VERSION ? data : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function save(slot) {
+    const data = { ...state, version: SAVE_VERSION, savedAt: new Date().toLocaleString() };
+    try {
+      localStorage.setItem(saveKey(slot), JSON.stringify(data));
+      say(`Game saved to slot ${slot}.`);
+    } catch {
+      say('Could not save: browser storage is unavailable.');
+    }
+  }
+
+  function showLoadMenu() {
+    SAVE_SLOTS.forEach(slot => {
+      const data = readSave(slot);
+      const button = $(`loadSlot${slot}`);
+      button.textContent = data ? `Slot ${slot}: ${rooms[data.currentRoom].name} (${data.savedAt})` : `Slot ${slot}: Empty`;
+      button.disabled = !data;
     });
+    showScreen('loadmenu');
+  }
+
+  function load(slot) {
+    const data = readSave(slot);
+    if (!data) return;
+    delete data.version;
+    delete data.savedAt;
+    state = data;
+    showScreen('game');
+    say(`Game loaded from slot ${slot}. Location: ${room().name}, facing ${state.facing}.`);
+    render();
+  }
+
+  // ---------- Rendering ----------
+
+  const sceneImg = $('sceneImg');
+  sceneImg.addEventListener('error', () => {
+    const name = sceneImg.dataset.scene || 'scene';
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="870" height="500"><rect width="100%" height="100%" fill="#222"/><text x="50%" y="50%" fill="#777" font-family="sans-serif" font-size="28" text-anchor="middle">No image yet: ${name}</text></svg>`;
+    sceneImg.src = 'data:image/svg+xml,' + encodeURIComponent(svg);
+  });
+
+  function render() {
+    const r = room();
+    const s = roomState();
+    const dir = state.facing;
+
+    $('facingDirection').textContent = cap(dir);
+
+    const scene = `${state.currentRoom}_${dir}`;
+    if (sceneImg.dataset.scene !== scene) {
+      sceneImg.dataset.scene = scene;
+      sceneImg.src = `images/${scene}.jpg`;
+      sceneImg.alt = `${r.name}, facing ${dir}`;
+    }
+
+    $('inspectActions').innerHTML = r.inspectables(s, dir).map(([id, label]) => btn(label, 'inspect', id)).join('');
+    $('actions').innerHTML = r.actions(s, dir);
+
+    const rows = r.status(s);
+    $('searchStatus').innerHTML = '<strong>Search Status</strong><br>' +
+      (rows.length ? rows.map(([label, status]) => `${label}: ${status}`).join('<br>') : 'Nothing searched yet.');
+
+    const notes = [...state.persistentNotes, ...state.notes];
+    $('notes').innerHTML = notes.length
+      ? notes.map((note, i) => btn(note.length > 24 ? note.slice(0, 24) + '…' : note, 'showNote', i)).join('')
+      : 'No notes.';
+
+    $('inventory').innerHTML = state.inventory.length
+      ? state.inventory.map(item => btn(ITEMS[item].name, 'inspectItem', item)).join('')
+      : 'No items.';
+  }
+
+  // ---------- Input ----------
+
+  const globalHandlers = { inspect, take, inspectItem, showNote };
+
+  function runAction(action, arg) {
+    if (!state) return;
+    if (globalHandlers[action]) {
+      globalHandlers[action](arg);
+      return;
+    }
+    const handler = room().handlers[action];
+    if (!handler) return;
+    say(handler(roomState(), arg));
+    render();
+  }
+
+  document.addEventListener('click', e => {
+    const button = e.target.closest('[data-action]');
+    if (button) runAction(button.dataset.action, button.dataset.arg);
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && e.target.id === 'codeInput') runAction('submitCode');
+  });
+
+  const staticButtons = {
+    newGame: startNew,
+    loadGame: showLoadMenu,
+    backToMenu: () => showScreen('menu'),
+    hintButton: () => state && showHint()
+  };
+  DIRS.forEach(dir => {
+    staticButtons['turn' + cap(dir)] = () => state && turn(dir);
+    staticButtons['move' + cap(dir)] = () => state && move(dir);
+  });
+  SAVE_SLOTS.forEach(slot => {
+    staticButtons['saveSlot' + slot] = () => state && save(slot);
+    staticButtons['loadSlot' + slot] = () => load(slot);
+  });
+  Object.entries(staticButtons).forEach(([id, fn]) => $(id).addEventListener('click', fn));
+});
