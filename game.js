@@ -71,7 +71,8 @@ document.addEventListener('DOMContentLoaded', () => {
   //                          (s.searched[objectId] counts inspections: a 2nd look can find hidden things)
   //   actions(s, dir)        HTML for context actions (take, use, enter code...)
   //   handlers[action](s,a)  room-specific actions; return the message to show
-  //   status(s)              [label, status] rows for the Search Status panel
+  //   status(s)              [objectId, label, status] rows for the Status panel; a row only
+  //                          shows once that object has been on screen (see markSeen)
   //   exits[dir]             destination room, open once s.solved is true
 
   const rooms = {
@@ -87,6 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       createState: () => ({
         ...generateCellPuzzle(),
+        seen: {},
         searched: {},
         taken: {},
         revealed: {},
@@ -209,22 +211,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       },
 
-      // The lock and number pad only join the list once discovered.
       status(s) {
         const n = s.searched;
-        const rows = [
-          ['Chair', !n.chair ? 'Unsearched' : s.taken.key ? 'Cleared' : n.chair >= 2 ? 'Item found' : 'Searched'],
-          ['Table', !n.table ? 'Unsearched'
+        return [
+          ['northWall', 'North Wall', s.revealed.northWall ? 'Revealed' : n.northWall ? 'Searched' : 'Unsearched'],
+          ['chair', 'Chair', !n.chair ? 'Unsearched' : s.taken.key ? 'Cleared' : n.chair >= 2 ? 'Item found' : 'Searched'],
+          ['table', 'Table', !n.table ? 'Unsearched'
             : s.noteRead && s.taken.uvlight ? 'Cleared'
             : n.table >= 2 && !s.taken.uvlight ? 'Item found'
             : !s.noteRead ? 'Note found' : 'Searched'],
-          ['North Wall', s.revealed.northWall ? 'Revealed' : n.northWall ? 'Searched' : 'Unsearched'],
-          ['South Wall', s.revealed.southWall ? 'Revealed' : n.southWall ? 'Searched' : 'Unsearched'],
-          ['Painting', s.paintingOpen ? 'Opened' : n.painting ? 'Searched' : 'Unsearched']
+          ['southWall', 'South Wall', s.revealed.southWall ? 'Revealed' : n.southWall ? 'Searched' : 'Unsearched'],
+          ['painting', 'Painting', s.paintingOpen ? 'Opened' : n.painting ? 'Searched' : 'Unsearched'],
+          ['lock', 'Lock', s.paintingOpen ? 'Unlocked' : n.lock ? 'Searched' : 'Unsearched'],
+          ['numpad', 'Number Pad', s.solved ? 'Solved' : n.numpad ? 'Searched' : 'Unsearched']
         ];
-        if (n.painting) rows.push(['Lock', s.paintingOpen ? 'Unlocked' : n.lock ? 'Searched' : 'Unsearched']);
-        if (s.paintingOpen) rows.push(['Number Pad', s.solved ? 'Solved' : n.numpad ? 'Searched' : 'Unsearched']);
-        return rows;
       }
     },
 
@@ -234,7 +234,7 @@ document.addEventListener('DOMContentLoaded', () => {
       intro: 'You step through the door into a vast room, far larger than the cell. One entire wall is a bookshelf, packed from floor to ceiling.<br><br><em>To be continued...</em>',
       hints: [],
       exits: {},
-      createState: () => ({ searched: {}, solved: false }),
+      createState: () => ({ seen: {}, searched: {}, solved: false }),
       view: (s, dir) => dir === 'north'
         ? 'A towering bookshelf covers the entire wall.'
         : 'Dim lamplight, dust, and silence.',
@@ -436,10 +436,15 @@ document.addEventListener('DOMContentLoaded', () => {
       sceneImg.alt = `${r.name}, facing ${dir}`;
     }
 
-    $('inspectActions').innerHTML = r.inspectables(s, dir).map(([id, label]) => btn(label, 'inspect', id)).join('');
+    // Everything inspectable right now is on screen, so it counts as seen from here on.
+    const inspectables = r.inspectables(s, dir);
+    s.seen = s.seen || {};  // saves made before seen-tracking existed
+    inspectables.forEach(([id]) => { s.seen[id] = true; });
+
+    $('inspectActions').innerHTML = inspectables.map(([id, label]) => btn(label, 'inspect', id)).join('');
     $('actions').innerHTML = r.actions(s, dir);
 
-    const rows = r.status(s);
+    const rows = r.status(s).filter(([id]) => s.seen[id]).map(([, label, status]) => [label, status]);
     const DONE = ['Cleared', 'Revealed', 'Opened', 'Unlocked', 'Solved'];
     $('searchStatus').innerHTML = rows.length
       ? '<ul class="status-list">' + rows.map(([label, status]) =>

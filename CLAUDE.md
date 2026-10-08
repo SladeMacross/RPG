@@ -61,8 +61,12 @@ every puzzle distinct (design principle 5):
   ("Three is the magic number.") → UV light wedged underneath.
 - Progressive discovery (decided): objects appear only once discovered. West wall:
   Inspect Painting → Inspect Lock appears → Use Key (needs lock inspected) →
-  Inspect Number Pad appears → code input appears. The Search Status list grows the
-  same way (Lock, Number Pad added when found) and never lists hidden spots.
+  Inspect Number Pad appears → code input appears. The Search Status list never
+  lists hidden spots.
+- STATUS SHOWS ONLY WHAT'S BEEN ON SCREEN (decided 2026-10-07, applies to every room):
+  an object joins the Status panel the first time it is on screen (you face its
+  wall, or it's discovered while you face it) and then stays. A new game starts
+  with only North Wall listed.
 - UV light on NORTH wall reveals 3 "words" (decided: 3, echoing "Three is the
   magic number") — strings of random uppercase letters, 5–8 letters each.
 - UV light on SOUTH wall reveals a cipher: every letter A–Z gets a UNIQUE number
@@ -129,6 +133,10 @@ every puzzle distinct (design principle 5):
   `actions(s, dir)`, `handlers[action]`, `status(s)`, `exits[dir]`, `hints`, `intro`.
   Add a new level by adding a room entry; the engine needs no changes for basic rooms.
 - Exits only open when that room's state has `solved: true`.
+- `status(s)` returns `[objectId, label, status]` rows. The engine marks every
+  current inspectable as seen in `s.seen` on each render and only shows rows whose
+  objectId is seen, so rooms list every object and the engine handles visibility.
+  Room state needs `seen: {}`.
 - The engine counts inspections in `s.searched[objectId]` (1, 2, 3...) before
   calling `inspect[objectId]`, so rooms can hide things behind a second look.
 - Buttons use `data-action` / `data-arg` and one delegated click listener.
