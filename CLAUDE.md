@@ -179,6 +179,9 @@ every puzzle distinct (design principle 5):
   portrait close-ups) are shown whole over a dimmed, blurred copy of themselves.
 - Level 1 images (`images/room1/`): north, east, south, west (Pawn painting),
   west_open (painting swung open, door with keypad behind — shown once unlocked),
+  west_door_open (NOT YET MADE — David is sourcing it: same view with the door
+  itself open, next room unseen; shown after the correct code, falls back to
+  west_open until the file exists),
   lock_locked (on Inspect Lock), lock_unlocked (on Use Key), numberpad (on Inspect
   Number Pad; keypad with a six-digit display).
 - `images/room2/room2.jpg` is the Knight painting for Level 2. Not loaded yet: when

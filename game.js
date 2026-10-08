@@ -74,7 +74,8 @@ document.addEventListener('DOMContentLoaded', () => {
   //   status(s)              [objectId, label, status] rows for the Search panel; a row only
   //                          shows once that object has been on screen
   //   exits[dir]             destination room, open once s.solved is true
-  //   scene(s, dir)          optional: image name for a wall when it changes (e.g. 'west_open')
+  //   scene(s, dir)          optional: image name for a wall when it changes (e.g. 'west_open'),
+  //                          or a list of names to try in order (later ones are fallbacks)
   //
   // Scene images live in images/<roomId>/<roomId>_<name>.jpg. Setting s.closeup = '<name>'
   // inside an inspect or handler shows a close-up instead; turning or inspecting
@@ -90,7 +91,12 @@ document.addEventListener('DOMContentLoaded', () => {
         'Take the third letter of each word and find its number in the code on the other wall. Enter the numbers in order.'
       ],
       exits: { west: 'room2' },
-      scene: (s, dir) => dir === 'west' && s.paintingOpen ? 'west_open' : dir,
+      // West wall: painting → painting swung open → door open (falls back to west_open until that image exists).
+      scene(s, dir) {
+        if (dir !== 'west') return dir;
+        if (s.solved) return ['west_door_open', 'west_open'];
+        return s.paintingOpen ? 'west_open' : 'west';
+      },
 
       createState: () => ({
         ...generateCellPuzzle(),
@@ -217,6 +223,7 @@ document.addEventListener('DOMContentLoaded', () => {
           if (!guess) return 'The number pad waits for a code.';
           if (guess !== s.code) return `You enter ${guess}. The number pad buzzes. That is the wrong code.`;
           s.solved = true;
+          s.closeup = null;  // step back from the keypad to see the door swing open
           return 'That was the correct code! You hear a loud <em>click</em> and the door swings open.<br><br>The way west is clear.';
         }
       },
@@ -430,6 +437,13 @@ document.addEventListener('DOMContentLoaded', () => {
     frame.style.setProperty('--scene-src', tall ? `url("${sceneImg.src}")` : 'none');
   });
   sceneImg.addEventListener('error', () => {
+    // A room can list fallback images for a view; try the next before showing the placeholder.
+    const fallbacks = JSON.parse(sceneImg.dataset.fallbacks || '[]');
+    if (fallbacks.length) {
+      sceneImg.dataset.fallbacks = JSON.stringify(fallbacks.slice(1));
+      sceneImg.src = fallbacks[0];
+      return;
+    }
     const name = sceneImg.dataset.scene || 'scene';
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800"><rect width="100%" height="100%" fill="#121419"/><text x="50%" y="50%" fill="#6f6a5d" font-family="Georgia, serif" font-size="40" text-anchor="middle">No image yet: ${name}</text></svg>`;
     sceneImg.src = 'data:image/svg+xml,' + encodeURIComponent(svg);
@@ -449,11 +463,14 @@ document.addEventListener('DOMContentLoaded', () => {
     $('moveForward').classList.toggle('exit-open', exitOpen(dir));
     $('moveBack').classList.toggle('exit-open', exitOpen(rotate(dir, 2)));
 
-    const view = s.closeup || (r.scene ? r.scene(s, dir) : dir);
-    const scene = `${state.currentRoom}_${view}`;
+    // scene() may return a list: the first image, then fallbacks if it doesn't exist yet.
+    const views = [].concat(s.closeup || (r.scene ? r.scene(s, dir) : dir));
+    const paths = views.map(v => `images/${state.currentRoom}/${state.currentRoom}_${v}.jpg`);
+    const scene = `${state.currentRoom}_${views[0]}`;
     if (sceneImg.dataset.scene !== scene) {
       sceneImg.dataset.scene = scene;
-      sceneImg.src = `images/${state.currentRoom}/${scene}.jpg`;
+      sceneImg.dataset.fallbacks = JSON.stringify(paths.slice(1));
+      sceneImg.src = paths[0];
       sceneImg.alt = s.closeup ? `${r.name}: close-up` : `${r.name}, facing ${dir}`;
     }
 
