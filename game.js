@@ -74,6 +74,8 @@ document.addEventListener('DOMContentLoaded', () => {
   //   status(s)              [objectId, label, status] rows for the Search panel; a row only
   //                          shows once that object has been on screen
   //   exits[dir]             destination room, open once s.solved is true
+  //   exitLabel              button shown in Actions once solved, from any facing (e.g. 'Step Through the Door');
+  //                          each room words its own exit
   //   scene(s, dir)          optional: image name for a wall when it changes (e.g. 'west_open'),
   //                          or a list of names to try in order (later ones are fallbacks)
   //
@@ -91,6 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'Take the third letter of each word and find its number in the code on the other wall. Enter the numbers in order.'
       ],
       exits: { west: 'room2' },
+      exitLabel: 'Step Through the Door',
       // West wall: painting → painting swung open → door open.
       scene(s, dir) {
         if (dir !== 'west') return dir;
@@ -480,7 +483,8 @@ document.addEventListener('DOMContentLoaded', () => {
     inspectables.forEach(([id]) => { s.seen[id] = true; });
 
     $('inspectActions').innerHTML = inspectables.map(([id, label]) => btn(label, 'inspect', id)).join('');
-    $('actions').innerHTML = r.actions(s, dir);
+    const exitButton = s.solved && r.exitLabel ? btn(r.exitLabel, 'exitRoom') : '';
+    $('actions').innerHTML = r.actions(s, dir) + exitButton;
 
     const rows = r.status(s).filter(([id]) => s.seen[id]).map(([, label, status]) => [label, status]);
     // Search checklist: Unsearched rows stay plain, anything else is in progress until it reaches a finished state.
@@ -504,7 +508,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ---------- Input ----------
 
-  const globalHandlers = { inspect, take, inspectItem, showNote };
+  // The exit button leaves by the room's exit, whichever way the player is facing.
+  const exitRoom = () => move(Object.keys(room().exits)[0]);
+
+  const globalHandlers = { inspect, take, inspectItem, showNote, exitRoom };
 
   function runAction(action, arg) {
     if (!state) return;

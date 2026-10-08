@@ -133,6 +133,12 @@ every puzzle distinct (design principle 5):
   `actions(s, dir)`, `handlers[action]`, `status(s)`, `exits[dir]`, `hints`, `intro`.
   Add a new level by adding a room entry; the engine needs no changes for basic rooms.
 - Exits only open when that room's state has `solved: true`.
+- EXIT BUTTON (decided 2026-10-08): once a room is solved, its `exitLabel` appears
+  as a button in Actions, from any facing, and leaves by the room's exit (same
+  as Forward toward it). Each room words its own exit — the pattern is
+  "Step Through the Door" (Level 1), e.g. "Step Through the Bookshelf",
+  "Climb Through the Hatch". Never "Exit Room"/"Enter Room": the player is
+  moving forward in a trial, not escaping, and shouldn't be told what's next.
 - `status(s)` returns `[objectId, label, status]` rows. The engine marks every
   current inspectable as seen in `s.seen` on each render and only shows rows whose
   objectId is seen, so rooms list every object and the engine handles visibility.
