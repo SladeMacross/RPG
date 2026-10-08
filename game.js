@@ -91,10 +91,10 @@ document.addEventListener('DOMContentLoaded', () => {
         'Take the third letter of each word and find its number in the code on the other wall. Enter the numbers in order.'
       ],
       exits: { west: 'room2' },
-      // West wall: painting → painting swung open → door open (falls back to west_open until that image exists).
+      // West wall: painting → painting swung open → door open.
       scene(s, dir) {
         if (dir !== 'west') return dir;
-        if (s.solved) return ['west_door_open', 'west_open'];
+        if (s.solved) return 'west_exit';
         return s.paintingOpen ? 'west_open' : 'west';
       },
 
