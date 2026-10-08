@@ -164,7 +164,8 @@ input:focus-visible {
   width: 100%;
   aspect-ratio: 3 / 2;
   max-height: 42vh;
-  object-fit: contain;
+  object-fit: cover;   /* fill the frame edge to edge, no side bars */
+  object-position: center;
 }
 
 /* Description: the main focus */
@@ -187,7 +188,7 @@ input:focus-visible {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   gap: var(--space-4);
-  align-items: start;
+  align-items: stretch;
 }
 
 .pad {
@@ -226,11 +227,25 @@ input:focus-visible {
   color: var(--accent);
 }
 
+/* Room actions: a card the same height as the pad, actions stacked inside */
 .room-actions {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
   min-width: 0;
+  padding: var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow-y: auto;
+}
+.room-actions::before {
+  content: 'Actions';
+  font-family: var(--font-title);
+  font-size: 0.8rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--accent);
 }
 #inspectActions,
 #actions {
@@ -245,8 +260,36 @@ input:focus-visible {
   border-top: 1px solid var(--line);
 }
 #inspectActions button,
-#actions button { justify-content: flex-start; text-align: left; }
-#actions button { border-color: var(--accent); }
+#actions button {
+  justify-content: flex-start;
+  text-align: left;
+  min-height: 48px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  border-color: var(--accent);
+}
+#inspectActions button:hover,
+#actions button:hover {
+  background: rgba(201, 162, 74, 0.08);
+  box-shadow: 0 0 12px rgba(201, 162, 74, 0.35);
+}
+/* Icons: magnifier for Inspect, a small diamond for other actions */
+#inspectActions button::before,
+#actions button::before {
+  content: '';
+  flex: none;
+  width: 18px;
+  height: 18px;
+  background: var(--accent);
+  -webkit-mask: var(--icon) center / contain no-repeat;
+  mask: var(--icon) center / contain no-repeat;
+}
+#inspectActions button {
+  --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round'%3E%3Ccircle cx='10' cy='10' r='6.5'/%3E%3Cpath d='M15 15l6 6'/%3E%3C/svg%3E");
+}
+#actions button {
+  --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 3l7 9-7 9-7-9z'/%3E%3C/svg%3E");
+}
 
 .combat {
   grid-column: 1 / -1;
@@ -303,8 +346,20 @@ input:focus-visible {
   color: var(--text);
 }
 .status-list li:last-child { border-bottom: none; }
+/* Search checklist: open circle = not yet searched, gold dot = in progress,
+   gold check + dimmed = finished. */
+.status-list li > span:first-child::before {
+  display: inline-block;
+  width: 1.3em;
+  content: '○';
+  color: var(--muted);
+}
+.status-list li.in-progress > span:first-child::before { content: '•'; color: var(--accent); }
+.status-list li.done { color: var(--muted); }
+.status-list li.done > span:first-child::before { content: '✓'; color: var(--accent); font-weight: 700; }
 .status-value { color: var(--muted); font-style: italic; }
-.status-value.done { color: var(--accent); font-style: normal; }
+.in-progress .status-value { color: var(--text); font-style: normal; }
+.done .status-value { color: var(--accent); font-style: normal; opacity: 0.8; }
 
 /* ---------- Overlay menu ---------- */
 .overlay {
@@ -359,6 +414,47 @@ input:focus-visible {
   font-family: var(--font-mono);
   font-size: 0.95rem;
   color: var(--accent);
+}
+
+/* ---------- Laptop / desktop: the whole game fits one screen ----------
+   The page is exactly one viewport tall. The scene image takes whatever
+   height is left after the description and controls, and the side panels
+   stretch to the bottom (Notes and Search scroll inside if they grow). */
+@media (min-width: 961px) and (min-height: 560px) {
+  #game {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding: var(--space-3) var(--space-4);
+  }
+  .topbar { flex: none; padding-bottom: var(--space-2); margin-bottom: var(--space-3); }
+  .layout, .main-zone, .side-zone { gap: var(--space-3); }
+  .pad-btn { min-height: 48px; }
+  .description { padding: var(--space-3) var(--space-4); }
+  .layout {
+    flex: 1;
+    min-height: 0;
+    align-items: stretch;
+  }
+  .main-zone { min-height: 0; }
+  .scene {
+    flex: 1 1 0;
+    min-height: 160px;
+  }
+  #sceneImg {
+    height: 100%;
+    aspect-ratio: auto;
+    max-height: none;
+  }
+  .description { flex: none; min-height: 0; }
+  .controls { flex: none; }
+  .side-zone { min-height: 0; }
+  .side-zone .panel { flex: none; }
+  .side-zone .panel[open]:not(:first-child) {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-y: auto;
+  }
 }
 
 /* ---------- Tablet ---------- */

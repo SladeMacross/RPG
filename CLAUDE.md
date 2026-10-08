@@ -61,10 +61,10 @@ every puzzle distinct (design principle 5):
   ("Three is the magic number.") → UV light wedged underneath.
 - Progressive discovery (decided): objects appear only once discovered. West wall:
   Inspect Painting → Inspect Lock appears → Use Key (needs lock inspected) →
-  Inspect Number Pad appears → code input appears. The Search Status list never
+  Inspect Number Pad appears → code input appears. The Search panel never
   lists hidden spots.
 - STATUS SHOWS ONLY WHAT'S BEEN ON SCREEN (decided 2026-10-07, applies to every room):
-  an object joins the Status panel the first time it is on screen (you face its
+  an object joins the Search panel the first time it is on screen (you face its
   wall, or it's discovered while you face it) and then stays. A new game starts
   with only North Wall listed.
 - UV light on NORTH wall reveals 3 "words" (decided: 3, echoing "Three is the
@@ -153,9 +153,18 @@ every puzzle distinct (design principle 5):
   Back the opposite way. Forward/Back glow in the accent colour once an exit that
   way is open. Arrow keys drive the pad too.
 - Screen zones: top bar (room name, Hint, Menu) → scene image → description card
-  (facing + message, the main focus) → controls (pad + room actions) → side panel
-  (Inventory, Notes, Status as collapsible cards). Below 960px the side panel drops
-  under the main column; below 640px everything stacks for phones.
+  (facing + message, the main focus) → controls (pad + an "Actions" card side by
+  side) → side panel (Inventory, Notes, Search as collapsible cards).
+- Laptop/desktop (wider than 960px, taller than 560px): the game is exactly one
+  screen tall, no scrolling. The scene image fills its frame (object-fit: cover)
+  and takes whatever height is left; Notes and Search stretch to the bottom and
+  scroll inside. Below 960px the side panel drops under the main column; below
+  640px everything stacks for phones.
+- Room text never repeats the facing direction — the FACING label shows it.
+- Action buttons: gold border and hover glow; magnifier icon for Inspect, diamond
+  for other actions.
+- Search panel (renamed from Status): ○ not yet searched, gold • in progress,
+  gold ✓ with dimmed text when finished (Cleared/Revealed/Opened/Unlocked/Solved).
 - Menu button opens an overlay with Save 1–3 (each shows what's in the slot),
   Resume and Quit to Title. Load stays on the title screen.
 - Look: "candlelit castle stone" palette as CSS variables in style.css

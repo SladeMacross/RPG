@@ -71,14 +71,14 @@ document.addEventListener('DOMContentLoaded', () => {
   //                          (s.searched[objectId] counts inspections: a 2nd look can find hidden things)
   //   actions(s, dir)        HTML for context actions (take, use, enter code...)
   //   handlers[action](s,a)  room-specific actions; return the message to show
-  //   status(s)              [objectId, label, status] rows for the Status panel; a row only
+  //   status(s)              [objectId, label, status] rows for the Search panel; a row only
   //                          shows once that object has been on screen (see markSeen)
   //   exits[dir]             destination room, open once s.solved is true
 
   const rooms = {
     room1: {
       name: 'Concrete Cell',
-      intro: 'Your head throbs as you awaken on a cold, gritty floor. The air is stale, and the faint buzz of flickering fluorescent lights overhead grates on your nerves. As your vision clears, you find yourself in a windowless concrete cell. There’s a rickety chair and a wobbly table to the east, an enormous painting covering the west wall, and plain walls to the north and south.<br><br>You’re facing north.',
+      intro: 'Your head throbs as you awaken on a cold, gritty floor. The air is stale, and the faint buzz of flickering fluorescent lights overhead grates on your nerves. As your vision clears, you find yourself in a windowless concrete cell. There’s a rickety chair and a wobbly table to the east, an enormous painting covering the west wall, and plain walls to the north and south.',
       hints: [
         'Look more closely: some things need to be searched more than once.',
         'The UV light might reveal hidden secrets written on the walls.',
@@ -445,11 +445,13 @@ document.addEventListener('DOMContentLoaded', () => {
     $('actions').innerHTML = r.actions(s, dir);
 
     const rows = r.status(s).filter(([id]) => s.seen[id]).map(([, label, status]) => [label, status]);
+    // Search checklist: Unsearched rows stay plain, anything else is in progress until it reaches a finished state.
     const DONE = ['Cleared', 'Revealed', 'Opened', 'Unlocked', 'Solved'];
+    const rowClass = status => DONE.includes(status) ? 'done' : status === 'Unsearched' ? '' : 'in-progress';
     $('searchStatus').innerHTML = rows.length
       ? '<ul class="status-list">' + rows.map(([label, status]) =>
-        `<li><span>${label}</span><span class="status-value${DONE.includes(status) ? ' done' : ''}">${status}</span></li>`).join('') + '</ul>'
-      : 'Nothing searched yet.';
+        `<li class="${rowClass(status)}"><span>${label}</span><span class="status-value">${status}</span></li>`).join('') + '</ul>'
+      : 'Nothing seen yet.';
 
     // Long notes are shortened by CSS; the full text shows when clicked.
     const notes = [...state.persistentNotes, ...state.notes];
