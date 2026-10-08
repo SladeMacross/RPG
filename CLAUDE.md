@@ -110,6 +110,11 @@ every puzzle distinct (design principle 5):
 - Combat = PATTERN RECOGNITION, not action. Each enemy has a hidden move sequence.
   Attack beats Magic, Block beats Attack, Magic beats Block. Wrong counters cost health.
   Environmental clues hint at patterns (especially the Captor's).
+- ENEMIES ARE NOT INSPECTABLE (decided 2026-10-08): an enemy gets no Inspect
+  button. Exploration offers only "Fight <enemy>" (e.g. "Fight Guard") to start the fight —
+  not "Attack", which is a combat move; any
+  pattern clue belongs to the environment (room text, walls, objects), not the enemy.
+- Layout prototype: `combat-demo.html` (standalone, not linked from the game).
 - UI: the combat panel (`#combatPanel`, buttons `combatAttack/Block/Magic/Item/Run`)
   is hidden during exploration. `setCombat(true)` in game.js shows it and hides the
   movement pad and room actions; the buttons have no handlers yet.

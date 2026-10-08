@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Combat Demo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* ---------- Combat demo additions (would move into style.css when combat is built) ---------- */
+    .demo-banner {
+      font-family: var(--font-title);
+      font-size: 0.75rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .demo-banner a { color: var(--accent); }
+
+    /* Combat mode tints the frame red instead of gold */
+    #game.in-combat .description { border-left-color: var(--danger); }
+    #game.in-combat .facing-badge,
+    #game.in-combat .room-name { color: #d06a5f; }
+    #game.in-combat .scene { border-color: var(--danger); }
+
+    /* Enemy drawn over the scene */
+    .enemy {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: end center;
+      pointer-events: none;
+      background: radial-gradient(ellipse at center 65%, rgba(158, 59, 50, 0.45), transparent 55%);
+      transition: opacity 0.3s;
+    }
+    .enemy svg { height: 82%; max-height: 420px; filter: drop-shadow(0 0 14px rgba(158, 59, 50, 0.6)); }
+    .enemy.hit svg { animation: shake 0.3s; }
+    @keyframes shake { 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+
+    .nameplate {
+      position: absolute;
+      top: var(--space-3);
+      left: var(--space-3);
+      min-width: 180px;
+      padding: var(--space-2) var(--space-3);
+      background: rgba(18, 20, 25, 0.85);
+      border: 1px solid var(--danger);
+      border-radius: var(--radius);
+    }
+    .nameplate-name {
+      font-family: var(--font-title);
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: #d06a5f;
+    }
+    .hearts { display: flex; gap: 4px; margin-top: 2px; }
+    .heart {
+      width: 16px;
+      height: 16px;
+      background: var(--danger);
+      -webkit-mask: var(--heart) center / contain no-repeat;
+      mask: var(--heart) center / contain no-repeat;
+      --heart: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 21s-8-5.5-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.5-8 11-8 11z'/%3E%3C/svg%3E");
+    }
+    .heart.empty { background: var(--line); }
+    .hearts.you .heart { background: var(--accent); }
+    .hearts.you .heart.empty { background: var(--line); }
+
+    /* Combat controls: moves on the left, the pattern you've seen on the right */
+    .controls.combat-layout { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); }
+    .combat-panel {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+      padding: var(--space-3);
+      background: var(--surface);
+      border: 1px solid var(--danger);
+      border-radius: var(--radius);
+    }
+    .panel-label {
+      font-family: var(--font-title);
+      font-size: 0.8rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #d06a5f;
+    }
+    .move-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-2); }
+    .move-btn {
+      flex-direction: column;
+      gap: 4px;
+      min-height: 76px;
+      font-family: var(--font-title);
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      border-color: var(--danger);
+    }
+    .move-btn svg { width: 26px; height: 26px; }
+    .move-btn:hover { background: var(--danger); border-color: var(--danger); color: var(--text); box-shadow: 0 0 14px rgba(158, 59, 50, 0.5); }
+    .move-btn:disabled:hover { background: var(--bg); box-shadow: none; }
+    .sub-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+    .sub-row .btn { min-height: 40px; font-size: 0.95rem; }
+
+    .pattern-card {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+      padding: var(--space-3);
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      min-width: 0;
+    }
+    .your-health { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      width: 52px;
+      padding: 4px 0;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      font-size: 0.7rem;
+      color: var(--muted);
+    }
+    .chip svg { width: 18px; height: 18px; color: var(--text); }
+    .chip.win { border-color: var(--accent); }
+    .chip.lose { border-color: var(--danger); }
+    .chip-result { font-weight: 700; }
+    .chip.win .chip-result { color: var(--accent); }
+    .chip.lose .chip-result { color: #d06a5f; }
+    .chip.next { border-style: dashed; }
+    .chip.next svg { color: var(--muted); }
+
+    .counter-list { list-style: none; margin: 0; padding: 0; color: var(--text); }
+    .counter-list li { display: flex; align-items: center; gap: var(--space-2); padding: 3px 0; }
+    .counter-list svg { width: 16px; height: 16px; color: var(--accent); }
+    .counter-list .beats { color: var(--muted); font-style: italic; }
+
+    @media (max-width: 640px) {
+      .controls.combat-layout { grid-template-columns: minmax(0, 1fr); }
+      .nameplate { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div id="game" class="screen">
+    <header class="topbar">
+      <div>
+        <div class="demo-banner">Layout demo · <a href="index.html">back to the game</a></div>
+        <h1 id="roomName" class="room-name">Guard Post</h1>
+      </div>
+      <div class="topbar-actions">
+        <button id="hintButton" class="btn">Hint</button>
+        <button id="resetButton" class="btn">Restart Demo</button>
+      </div>
+    </header>
+
+    <div class="layout">
+      <main class="main-zone">
+        <figure class="scene">
+          <img id="sceneImg" src="images/room1/room1_north.jpg" alt="A stone corridor">
+          <div id="enemy" class="enemy">
+            <svg viewBox="0 0 200 300" aria-hidden="true" stroke="#b5483c" stroke-width="2.5" stroke-linejoin="round">
+              <!-- A guard: helmet, cloak, shield and spear, in silhouette -->
+              <line x1="158" y1="20" x2="158" y2="300" stroke="#0b0c10" stroke-width="7"/>
+              <path d="M150 22 L158 0 L166 22 Z" fill="#0b0c10"/>
+              <path d="M78 58 Q100 22 122 58 L122 80 L78 80 Z" fill="#0b0c10"/>
+              <rect x="84" y="66" width="32" height="5" fill="#9e3b32"/>
+              <path d="M70 88 Q100 76 130 88 L150 140 L140 300 L60 300 L50 140 Z" fill="#0b0c10"/>
+              <path d="M40 120 Q62 112 84 120 L84 190 Q62 214 40 190 Z" fill="#14161b" stroke="#2a2d36" stroke-width="3"/>
+              <path d="M134 120 L158 112 L162 130 L138 140 Z" fill="#0b0c10"/>
+            </svg>
+          </div>
+          <div id="nameplate" class="nameplate hidden">
+            <div class="nameplate-name" id="enemyName">Guard</div>
+            <div class="hearts" id="enemyHearts"></div>
+          </div>
+        </figure>
+
+        <section class="card description" aria-live="polite">
+          <div class="facing-badge" id="badge">Facing North</div>
+          <div id="message"></div>
+        </section>
+
+        <!-- Exploration controls (the normal game) -->
+        <section id="exploreControls" class="controls" aria-label="Controls">
+          <div class="pad" role="group" aria-label="Movement">
+            <button class="btn pad-btn pad-forward" data-demo-move>▲<span>Forward</span></button>
+            <button class="btn pad-btn pad-left" data-demo-move>⟲<span>Turn Left</span></button>
+            <div class="pad-compass" aria-hidden="true"><span>N</span></div>
+            <button class="btn pad-btn pad-right" data-demo-move>⟳<span>Turn Right</span></button>
+            <button class="btn pad-btn pad-back" data-demo-move>▼<span>Back</span></button>
+          </div>
+          <div class="room-actions">
+            <div id="inspectActions"></div>
+            <div id="actions"></div>
+          </div>
+        </section>
+
+        <!-- Combat controls: replace the pad and actions while fighting -->
+        <section id="combatControls" class="controls combat-layout hidden" aria-label="Combat">
+          <div class="combat-panel">
+            <div class="panel-label">Your move</div>
+            <div class="move-row">
+              <button class="btn move-btn" data-move="attack"></button>
+              <button class="btn move-btn" data-move="block"></button>
+              <button class="btn move-btn" data-move="magic"></button>
+            </div>
+            <div class="sub-row">
+              <button id="itemButton" class="btn">Item</button>
+              <button id="runButton" class="btn btn-quiet">Run</button>
+            </div>
+          </div>
+          <div class="pattern-card">
+            <div class="your-health">
+              <span class="panel-label" style="color: var(--accent)">You</span>
+              <div class="hearts you" id="playerHearts"></div>
+            </div>
+            <div class="panel-label">Guard's moves so far</div>
+            <div class="chips" id="history"></div>
+          </div>
+        </section>
+      </main>
+
+      <aside class="side-zone">
+        <details class="card panel" open>
+          <summary>Inventory</summary>
+          <div id="inventory" class="panel-body"></div>
+        </details>
+        <details class="card panel" open>
+          <summary>Counters</summary>
+          <div class="panel-body">
+            <ul class="counter-list" id="counterList"></ul>
+          </div>
+        </details>
+        <details class="card panel" open>
+          <summary>Notes</summary>
+          <div class="panel-body" id="notes">
+            <div>Combat demo. Every enemy repeats a hidden pattern; work it out and counter each move.</div>
+          </div>
+        </details>
+      </aside>
+    </div>
+  </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const $ = id => document.getElementById(id);
+
+  const ICONS = {
+    attack: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 19L18 6M14 5h5v5M8 13l3 3M4 20l2-2"/></svg>',
+    block: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/></svg>',
+    magic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v5M12 16v5M3 12h5M16 12h5M6 6l3 3M15 15l3 3M6 18l3-3M15 9l3-3"/></svg>',
+    unknown: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 9a3 3 0 1 1 4 2.8c-.7.3-1 1-1 1.7V15M12 19h.01"/></svg>'
+  };
+  const MOVES = {
+    attack: { label: 'Attack', beats: 'magic' },
+    block: { label: 'Block', beats: 'attack' },
+    magic: { label: 'Magic', beats: 'block' }
+  };
+
+  // The demo guard: a 4-move loop the player has to spot.
+  const GUARD = { name: 'Guard', maxHp: 4, pattern: ['attack', 'attack', 'magic', 'block'] };
+  const PLAYER_MAX = 5;
+
+  let s;
+
+  function reset() {
+    s = { mode: 'explore', round: 0, enemyHp: GUARD.maxHp, playerHp: PLAYER_MAX, history: [], bandages: 1, key: false };
+    say('A narrow guard post. An armoured guard stands in front of the only door, spear lowered. He watches you, but doesn’t move. Scratched into the wall beside him: <strong>two swords, a star, a shield</strong>… then the same again.<br><br><em>This page is a layout demo: the movement pad is shown but doesn’t go anywhere.</em>');
+    render();
+  }
+
+  const say = html => { $('message').innerHTML = html; };
+  const hearts = (n, max) => Array.from({ length: max }, (_, i) => `<span class="heart${i < n ? '' : ' empty'}"></span>`).join('');
+  const actionBtn = (label, action) => `<button data-action="${action}">${label}</button>`;
+
+  function render() {
+    const fighting = s.mode === 'combat';
+    $('game').classList.toggle('in-combat', fighting);
+    $('exploreControls').classList.toggle('hidden', fighting);
+    $('combatControls').classList.toggle('hidden', !fighting);
+    $('nameplate').classList.toggle('hidden', !fighting);
+    $('enemy').style.opacity = s.mode === 'won' ? 0 : 1;
+    $('badge').textContent = fighting ? `Combat · Round ${s.round + 1}` : 'Facing North';
+    $('roomName').textContent = 'Guard Post';
+
+    $('enemyHearts').innerHTML = hearts(s.enemyHp, GUARD.maxHp);
+    $('playerHearts').innerHTML = hearts(s.playerHp, PLAYER_MAX);
+
+    // Pattern history: every guard move so far, how your counter went, and a "?" for the next one.
+    $('history').innerHTML = s.history.map(h =>
+      `<div class="chip ${h.result}">${ICONS[h.enemy]}<span>${MOVES[h.enemy].label}</span><span class="chip-result">${h.result === 'win' ? '✓' : h.result === 'lose' ? '✗' : '–'}</span></div>`
+    ).join('') + `<div class="chip next">${ICONS.unknown}<span>Next</span><span class="chip-result">&nbsp;</span></div>`;
+
+    document.querySelectorAll('[data-move]').forEach(b => {
+      b.innerHTML = ICONS[b.dataset.move] + MOVES[b.dataset.move].label;
+    });
+    $('itemButton').textContent = s.bandages ? `Item (Bandage ×${s.bandages})` : 'Item (none)';
+    $('itemButton').disabled = !s.bandages || s.playerHp === PLAYER_MAX;
+
+    const actions = [];
+    if (s.mode === 'explore') actions.push(actionBtn('Fight Guard', 'fight'));
+    if (s.mode === 'won' && !s.key) actions.push(actionBtn('Take Key', 'takeKey'));
+    if (s.mode === 'won' && s.key) actions.push(actionBtn('Step Through the Door', 'restart'));
+    if (s.mode === 'lost') actions.push(actionBtn('Get Up and Try Again', 'fight'));
+    $('actions').innerHTML = actions.join('');
+
+    const items = [];
+    if (s.bandages) items.push(`Bandage ×${s.bandages}`);
+    if (s.key) items.push('Guard’s Key');
+    $('inventory').innerHTML = items.length ? items.map(i => `<button>${i}</button>`).join('') : 'No items.';
+  }
+
+  function startFight() {
+    s.mode = 'combat';
+    s.round = 0;
+    s.enemyHp = GUARD.maxHp;
+    s.playerHp = PLAYER_MAX;
+    s.history = [];
+    say('You rush the guard. He sets his feet and raises his spear. <strong>Choose your move.</strong>');
+    render();
+  }
+
+  function play(choice) {
+    if (s.mode !== 'combat') return;
+    const enemy = GUARD.pattern[s.round % GUARD.pattern.length];
+    const you = MOVES[choice].label;
+    const them = MOVES[enemy].label;
+    let result;
+    if (MOVES[choice].beats === enemy) {
+      result = 'win';
+      s.enemyHp--;
+      $('enemy').classList.remove('hit'); void $('enemy').offsetWidth; $('enemy').classList.add('hit');
+      say(`The guard uses <strong>${them}</strong>. Your <strong>${you}</strong> beats it. The guard staggers.`);
+    } else if (MOVES[enemy].beats === choice) {
+      result = 'lose';
+      s.playerHp--;
+      say(`The guard uses <strong>${them}</strong>. It beats your <strong>${you}</strong>. You lose a heart.`);
+    } else {
+      result = 'tie';
+      say(`You both use <strong>${you}</strong>. Neither gains ground.`);
+    }
+    s.history.push({ enemy, result });
+    s.round++;
+
+    if (s.enemyHp <= 0) {
+      s.mode = 'won';
+      say('The guard drops to one knee and sets down his spear. “You read me well.” A key slides across the floor toward you.');
+    } else if (s.playerHp <= 0) {
+      s.mode = 'lost';
+      say('You’re knocked to the ground. The guard steps back to his post and waits, as if he expected you to try again.');
+    }
+    render();
+  }
+
+  const handlers = {
+    fight: startFight,
+    takeKey: () => { s.key = true; say('You take the guard’s key.'); render(); },
+    restart: reset
+  };
+
+  document.addEventListener('click', e => {
+    const move = e.target.closest('[data-move]');
+    if (move) return play(move.dataset.move);
+    const action = e.target.closest('[data-action]');
+    if (action && handlers[action.dataset.action]) return handlers[action.dataset.action]();
+    if (e.target.closest('[data-demo-move]')) say('The movement pad is just for show on this demo page. Try <strong>Fight Guard</strong>.');
+  });
+
+  $('itemButton').addEventListener('click', () => {
+    s.bandages--;
+    s.playerHp = Math.min(PLAYER_MAX, s.playerHp + 1);
+    say('You wrap the bandage tight. +1 heart.<br><em>(How items work in combat is still to be decided.)</em>');
+    render();
+  });
+  $('runButton').addEventListener('click', () => {
+    s.mode = 'explore';
+    say('You back away. The guard returns to his post, fully recovered.<br><em>(The penalty for running is still to be decided.)</em>');
+    render();
+  });
+  $('hintButton').addEventListener('click', () =>
+    say(s.mode === 'combat' ? 'Watch the guard’s moves. They repeat in the same order.' : 'The scratches on the wall beside the guard might be worth remembering.'));
+  $('resetButton').addEventListener('click', reset);
+
+  $('counterList').innerHTML = Object.entries(MOVES).map(([id, m]) =>
+    `<li>${ICONS[id]}${m.label} <span class="beats">beats</span> ${MOVES[m.beats].label}</li>`).join('');
+
+  reset();
+});
+</script>
+</body>
+</html>
