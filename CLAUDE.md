@@ -106,8 +106,10 @@ every puzzle distinct (design principle 5):
 - Combat = PATTERN RECOGNITION, not action. Each enemy has a hidden move sequence.
   Attack beats Magic, Block beats Attack, Magic beats Block. Wrong counters cost health.
   Environmental clues hint at patterns (especially the Captor's).
-- UI: Attack/Block/Magic/Item/Run buttons exist in index.html but are not wired up
-  (they have no ids yet). Item = use a consumable. Run = penalty/reset, TBD.
+- UI: the combat panel (`#combatPanel`, buttons `combatAttack/Block/Magic/Item/Run`)
+  is hidden during exploration. `setCombat(true)` in game.js shows it and hides the
+  movement pad and room actions; the buttons have no handlers yet.
+  Item = use a consumable. Run = penalty/reset, TBD.
 
 ## Design principles (do not violate)
 
@@ -137,7 +139,21 @@ every puzzle distinct (design principle 5):
 - Saves: localStorage keys `clickgame_save_1..3`, with `version: 3`. Saves with
   another version are ignored (bump SAVE_VERSION if the state shape changes
   incompatibly).
-- Scene image: `images/<roomId>_<facing>.jpg`. Missing images show a dark
+- Controls (decided 2026-10-07): one dungeon-crawler pad — Forward/Back in the
+  centre column, Turn Left/Turn Right on the sides, a compass letter in the middle.
+  Turning steps through north/east/south/west; Forward moves the way you face,
+  Back the opposite way. Forward/Back glow in the accent colour once an exit that
+  way is open. Arrow keys drive the pad too.
+- Screen zones: top bar (room name, Hint, Menu) → scene image → description card
+  (facing + message, the main focus) → controls (pad + room actions) → side panel
+  (Inventory, Notes, Status as collapsible cards). Below 960px the side panel drops
+  under the main column; below 640px everything stacks for phones.
+- Menu button opens an overlay with Save 1–3 (each shows what's in the slot),
+  Resume and Quit to Title. Load stays on the title screen.
+- Look: "candlelit castle stone" palette as CSS variables in style.css
+  (--bg, --surface, --line, --text, --accent, --danger); Cinzel for titles,
+  Crimson Pro for body text (Google Fonts, Georgia fallback offline).
+- Scene image: `images/<roomId>_<facing>.jpg`, shown at 3:2. Missing images show a dark
   "No image yet" placeholder (generated in JS).
 - Existing images: room1_north, room1_east, room1_south, room1_west.
 - `images/room2.jpg` is the Knight painting for Level 2. Not loaded yet: when the

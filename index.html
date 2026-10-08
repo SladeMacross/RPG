@@ -4,131 +4,103 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Click-Game</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div id="menu">
-    <h1>Click Game</h1>
-    <button id="newGame">New Game</button>
-    <button id="loadGame">Load Game</button>
+  <!-- Title screens -->
+  <div id="menu" class="screen title-screen">
+    <div class="card title-card">
+      <h1>Click Game</h1>
+      <button id="newGame" class="btn btn-primary">New Game</button>
+      <button id="loadGame" class="btn">Load Game</button>
+    </div>
   </div>
-  <div id="loadmenu" class="hidden">
-    <h1>Load Game</h1>
-    <button id="loadSlot1">Load Slot 1</button>
-    <button id="loadSlot2">Load Slot 2</button>
-    <button id="loadSlot3">Load Slot 3</button>
-    <button id="backToMenu">Back</button>
+  <div id="loadmenu" class="screen title-screen hidden">
+    <div class="card title-card">
+      <h1>Load Game</h1>
+      <button id="loadSlot1" class="btn">Load Slot 1</button>
+      <button id="loadSlot2" class="btn">Load Slot 2</button>
+      <button id="loadSlot3" class="btn">Load Slot 3</button>
+      <button id="backToMenu" class="btn btn-quiet">Back</button>
+    </div>
   </div>
-  <div id="game" class="hidden">
-    <table border="1">
-      <tr>
-        <td>
-          <table border="1">
-            <tr>
-              <td>
-                <img id="sceneImg" src="images/room1_north.jpg" alt="Concrete Cell, facing north">
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <table border="1">
-                  <tr>
-                    <td colspan="1" style="width:200px;">FACING: <span id="facingDirection">North</span></td>
-                    <td colspan="2" style="height:100px; width:600px;">
-                      <div id="message">Welcome to the game!</div>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>
-                      <table border="1">
-                        <tr>
-                          <td></td>
-                          <td><button id="turnNorth" aria-label="Turn North">North</button></td>
-                          <td></td>
-                        </tr>
-                        <tr>
-                          <td><button id="turnWest" aria-label="Turn West">West</button></td>
-                          <td>Turn</td>
-                          <td><button id="turnEast" aria-label="Turn East">East</button></td>
-                        </tr>
-                        <tr>
-                          <td></td>
-                          <td><button id="turnSouth" aria-label="Turn South">South</button></td>
-                          <td></td>
-                        </tr>
-                      </table>
-                    </td>
-                    <td>
-                      <table border="1">
-                        <tr>
-                          <td></td>
-                          <td><button id="moveNorth" aria-label="Move North">North</button></td>
-                          <td></td>
-                        </tr>
-                        <tr>
-                          <td><button id="moveWest" aria-label="Move West">West</button></td>
-                          <td>Move</td>
-                          <td><button id="moveEast" aria-label="Move East">East</button></td>
-                        </tr>
-                        <tr>
-                          <td></td>
-                          <td><button id="moveSouth" aria-label="Move South">South</button></td>
-                          <td></td>
-                        </tr>
-                      </table>
-                    </td>
-                    <td>
-                      <table border="1">
-                        <tr>
-                          <td><button>Attack</button></td>
-                          <td><button>Block</button></td>
-                        </tr>
-                        <tr>
-                          <td><button>Magic</button></td>
-                          <td><button>Item</button></td>
-                        </tr>
-                        <tr>
-                          <td colspan="2"><button>Run</button></td>
-                        </tr>
-                      </table>
-                    </td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
-          </table>
-        </td>
-        <td>
-          <table style="width:300px;">
-            <tr>
-              <td style="width:100;"><button id="saveSlot1" aria-label="Save to Slot 1">Save 1</button></td>
-              <td style="width:100;"><button id="saveSlot2" aria-label="Save to Slot 2">Save 2</button></td>
-              <td style="width:100;"><button id="saveSlot3" aria-label="Save to Slot 3">Save 3</button></td>
-            </tr>
-            <tr>
-              <td colspan="3"><button id="hintButton" aria-label="Show Hint">Hint</button></td>
-            </tr>
-            <tr>
-              <td colspan="3" style="height:150px;">
-                <div id="inspectActions" role="region" aria-label="Inspection Actions"></div>
-                <div id="actions" role="region" aria-label="Game Actions"></div>
-              </td>
-            </tr>
-            <tr>
-              <td colspan="2">Notes</td>
-              <td>Inventory</td>
-            </tr>
-            <tr>
-              <td colspan="2" style="height:308px;" id="notes" role="region" aria-label="Notes">No notes.</td>
-              <td style="height:308px;" id="inventory" role="region" aria-label="Inventory">No items.</td>
-            </tr>
-            <tr>
-              <td colspan="3" style="height:206px;" id="searchStatus" role="region" aria-label="Search Status">Search Status</td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-    </table>
+
+  <!-- Game screen -->
+  <div id="game" class="screen hidden">
+    <header class="topbar">
+      <h1 id="roomName" class="room-name">Concrete Cell</h1>
+      <div class="topbar-actions">
+        <button id="hintButton" class="btn" aria-label="Show Hint">Hint</button>
+        <button id="menuButton" class="btn" aria-haspopup="dialog" aria-controls="gameMenu">Menu</button>
+      </div>
+    </header>
+
+    <div class="layout">
+      <main class="main-zone">
+        <figure class="scene">
+          <img id="sceneImg" src="images/room1_north.jpg" alt="Concrete Cell, facing north">
+        </figure>
+
+        <section class="card description" aria-live="polite">
+          <div class="facing-badge">Facing <span id="facingDirection">North</span></div>
+          <div id="message">Welcome to the game!</div>
+        </section>
+
+        <section class="controls" aria-label="Controls">
+          <div id="movePad" class="pad" role="group" aria-label="Movement">
+            <button id="moveForward" class="btn pad-btn pad-forward" aria-label="Move Forward">▲<span>Forward</span></button>
+            <button id="turnLeft" class="btn pad-btn pad-left" aria-label="Turn Left">⟲<span>Turn Left</span></button>
+            <div class="pad-compass" aria-hidden="true"><span id="padFacing">N</span></div>
+            <button id="turnRight" class="btn pad-btn pad-right" aria-label="Turn Right">⟳<span>Turn Right</span></button>
+            <button id="moveBack" class="btn pad-btn pad-back" aria-label="Move Back">▼<span>Back</span></button>
+          </div>
+
+          <div id="roomActions" class="room-actions">
+            <div id="inspectActions" role="region" aria-label="Inspection Actions"></div>
+            <div id="actions" role="region" aria-label="Game Actions"></div>
+          </div>
+
+          <div id="combatPanel" class="combat hidden" role="group" aria-label="Combat">
+            <button id="combatAttack" class="btn btn-danger">Attack</button>
+            <button id="combatBlock" class="btn btn-danger">Block</button>
+            <button id="combatMagic" class="btn btn-danger">Magic</button>
+            <button id="combatItem" class="btn">Item</button>
+            <button id="combatRun" class="btn btn-quiet">Run</button>
+          </div>
+        </section>
+      </main>
+
+      <aside class="side-zone">
+        <details class="card panel" open>
+          <summary>Inventory</summary>
+          <div id="inventory" class="panel-body" role="region" aria-label="Inventory">No items.</div>
+        </details>
+        <details class="card panel" open>
+          <summary>Notes</summary>
+          <div id="notes" class="panel-body" role="region" aria-label="Notes">No notes.</div>
+        </details>
+        <details class="card panel" open>
+          <summary>Status</summary>
+          <div id="searchStatus" class="panel-body" role="region" aria-label="Search Status">Nothing searched yet.</div>
+        </details>
+      </aside>
+    </div>
+
+    <!-- In-game menu overlay -->
+    <div id="gameMenu" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="gameMenuTitle">
+      <div class="card overlay-card">
+        <h2 id="gameMenuTitle">Menu</h2>
+        <button id="saveSlot1" class="btn" aria-label="Save to Slot 1">Save 1</button>
+        <button id="saveSlot2" class="btn" aria-label="Save to Slot 2">Save 2</button>
+        <button id="saveSlot3" class="btn" aria-label="Save to Slot 3">Save 3</button>
+        <hr>
+        <button id="closeMenu" class="btn btn-primary">Resume</button>
+        <button id="quitToTitle" class="btn btn-quiet">Quit to Title</button>
+      </div>
+    </div>
   </div>
 <script src="game.js"></script>
 </body>

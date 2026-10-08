@@ -41,8 +41,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function showScreen(id) {
+    closeMenu();
     ['menu', 'loadmenu', 'game'].forEach(screen => $(screen).classList.toggle('hidden', screen !== id));
   }
+
+  // Relative directions for the control pad: turning steps through DIRS, Back is the opposite wall.
+  const rotate = (dir, steps) => DIRS[(DIRS.indexOf(dir) + steps + 4) % 4];
 
   // ---------- Level 1 puzzle ----------
   // Each letter gets a unique number 01–26, shown on the wall as two digits.
@@ -182,7 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
             s.revealed.northWall = true;
             addNote('North wall: ' + s.words.join(' '));
             return 'You shine the UV light across the north wall. Words glow into view:' +
-              `<div class="wall-words">${s.words.join('&nbsp;&nbsp;&nbsp;')}</div>`;
+              `<div class="wall-words">${s.words.map(w => `<span>${w}</span>`).join('')}</div>`;
           }
           s.revealed.southWall = true;
           addNote('South wall: ' + [...LETTERS].map(l => `${l}=${s.cipher[l]}`).join(' '));
@@ -322,6 +326,42 @@ document.addEventListener('DOMContentLoaded', () => {
     say(`Hint ${used + 1} of ${hints.length}: ${hints[used]}`);
   }
 
+  // Combat is not built yet. When it is, call setCombat(true) to swap the
+  // movement pad and room actions for the Attack/Block/Magic/Item/Run panel.
+  function setCombat(active) {
+    $('combatPanel').classList.toggle('hidden', !active);
+    $('movePad').classList.toggle('hidden', active);
+    $('roomActions').classList.toggle('hidden', active);
+  }
+
+  // ---------- In-game menu ----------
+
+  const menuOpen = () => !$('gameMenu').classList.contains('hidden');
+
+  function openMenu() {
+    SAVE_SLOTS.forEach(slot => {
+      const data = readSave(slot);
+      $(`saveSlot${slot}`).textContent = data
+        ? `Save to Slot ${slot} — ${rooms[data.currentRoom].name}, ${data.savedAt}`
+        : `Save to Slot ${slot} — Empty`;
+    });
+    $('gameMenu').classList.remove('hidden');
+    $('closeMenu').focus();
+  }
+
+  function closeMenu() {
+    if (!menuOpen()) return;
+    $('gameMenu').classList.add('hidden');
+    $('menuButton').focus();
+  }
+
+  function quitToTitle() {
+    if (!confirm('Return to the title screen? Unsaved progress will be lost.')) return;
+    state = null;
+    setCombat(false);
+    showScreen('menu');
+  }
+
   // ---------- Saving and loading ----------
 
   const saveKey = slot => `clickgame_save_${slot}`;
@@ -371,7 +411,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const sceneImg = $('sceneImg');
   sceneImg.addEventListener('error', () => {
     const name = sceneImg.dataset.scene || 'scene';
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="870" height="500"><rect width="100%" height="100%" fill="#222"/><text x="50%" y="50%" fill="#777" font-family="sans-serif" font-size="28" text-anchor="middle">No image yet: ${name}</text></svg>`;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800"><rect width="100%" height="100%" fill="#121419"/><text x="50%" y="50%" fill="#6f6a5d" font-family="Georgia, serif" font-size="40" text-anchor="middle">No image yet: ${name}</text></svg>`;
     sceneImg.src = 'data:image/svg+xml,' + encodeURIComponent(svg);
   });
 
@@ -380,7 +420,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const s = roomState();
     const dir = state.facing;
 
+    $('roomName').textContent = r.name;
     $('facingDirection').textContent = cap(dir);
+    $('padFacing').textContent = dir[0].toUpperCase();
+
+    // Highlight Forward/Back once an exit in that direction has opened.
+    const exitOpen = d => Boolean(r.exits[d] && s.solved);
+    $('moveForward').classList.toggle('exit-open', exitOpen(dir));
+    $('moveBack').classList.toggle('exit-open', exitOpen(rotate(dir, 2)));
 
     const scene = `${state.currentRoom}_${dir}`;
     if (sceneImg.dataset.scene !== scene) {
@@ -393,12 +440,16 @@ document.addEventListener('DOMContentLoaded', () => {
     $('actions').innerHTML = r.actions(s, dir);
 
     const rows = r.status(s);
-    $('searchStatus').innerHTML = '<strong>Search Status</strong><br>' +
-      (rows.length ? rows.map(([label, status]) => `${label}: ${status}`).join('<br>') : 'Nothing searched yet.');
+    const DONE = ['Cleared', 'Revealed', 'Opened', 'Unlocked', 'Solved'];
+    $('searchStatus').innerHTML = rows.length
+      ? '<ul class="status-list">' + rows.map(([label, status]) =>
+        `<li><span>${label}</span><span class="status-value${DONE.includes(status) ? ' done' : ''}">${status}</span></li>`).join('') + '</ul>'
+      : 'Nothing searched yet.';
 
+    // Long notes are shortened by CSS; the full text shows when clicked.
     const notes = [...state.persistentNotes, ...state.notes];
     $('notes').innerHTML = notes.length
-      ? notes.map((note, i) => btn(note.length > 24 ? note.slice(0, 24) + '…' : note, 'showNote', i)).join('')
+      ? notes.map((note, i) => btn(note, 'showNote', i)).join('')
       : 'No notes.';
 
     $('inventory').innerHTML = state.inventory.length
@@ -427,22 +478,41 @@ document.addEventListener('DOMContentLoaded', () => {
     if (button) runAction(button.dataset.action, button.dataset.arg);
   });
 
+  const pad = {
+    turnLeft: () => state && turn(rotate(state.facing, -1)),
+    turnRight: () => state && turn(rotate(state.facing, 1)),
+    moveForward: () => state && move(state.facing),
+    moveBack: () => state && move(rotate(state.facing, 2))
+  };
+  const arrowKeys = { ArrowLeft: 'turnLeft', ArrowRight: 'turnRight', ArrowUp: 'moveForward', ArrowDown: 'moveBack' };
+
   document.addEventListener('keydown', e => {
     if (e.key === 'Enter' && e.target.id === 'codeInput') runAction('submitCode');
+    if (e.key === 'Escape') closeMenu();
+    // Arrow keys drive the pad, unless typing or a menu/combat is up.
+    const padAction = arrowKeys[e.key];
+    if (padAction && state && !menuOpen() && e.target.tagName !== 'INPUT' && !$('movePad').classList.contains('hidden')) {
+      e.preventDefault();
+      pad[padAction]();
+    }
+  });
+
+  $('gameMenu').addEventListener('click', e => {
+    if (e.target.id === 'gameMenu') closeMenu();
   });
 
   const staticButtons = {
+    ...pad,
     newGame: startNew,
     loadGame: showLoadMenu,
     backToMenu: () => showScreen('menu'),
-    hintButton: () => state && showHint()
+    hintButton: () => state && showHint(),
+    menuButton: () => state && openMenu(),
+    closeMenu,
+    quitToTitle
   };
-  DIRS.forEach(dir => {
-    staticButtons['turn' + cap(dir)] = () => state && turn(dir);
-    staticButtons['move' + cap(dir)] = () => state && move(dir);
-  });
   SAVE_SLOTS.forEach(slot => {
-    staticButtons['saveSlot' + slot] = () => state && save(slot);
+    staticButtons['saveSlot' + slot] = () => { if (state) { save(slot); closeMenu(); } };
     staticButtons['loadSlot' + slot] = () => load(slot);
   });
   Object.entries(staticButtons).forEach(([id, fn]) => $(id).addEventListener('click', fn));
