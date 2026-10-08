@@ -37,7 +37,7 @@ ascending piece value (1, 3, 3, 5, 9, priceless) and classic opening development
 order (pawns, knights before bishops, castle the rook, queen, king last). Never
 explained to the player — a quiet reward for chess players.
 - Level 1: Pawn — small soldier, short sword and shield, undersized, big castle behind
-- Level 2: Knight — armored rider on a large armored horse (image exists: `images/room2.jpg`)
+- Level 2: Knight — armored rider on a large armored horse (image exists: `images/room2/room2.jpg`)
 - Level 3: Bishop — tall mage in a dark cloak
 - Level 4: Rook — massive armored soldier with a lance
 - Level 5: Queen
@@ -77,7 +77,7 @@ every puzzle distinct (design principle 5):
   Correct code → "Move West" exits.
 - Randomized every new game.
 - 3 sequential hints.
-- `images/room1_west.jpg` shows the Pawn painting (young soldier, short sword, round
+- `images/room1/room1_west.jpg` shows the Pawn painting (young soldier, short sword, round
   wooden shield, towering castle behind).
 
 ### Level 2 — The Library (PLACEHOLDER ONLY)
@@ -170,11 +170,19 @@ every puzzle distinct (design principle 5):
 - Look: "candlelit castle stone" palette as CSS variables in style.css
   (--bg, --surface, --line, --text, --accent, --danger); Cinzel for titles,
   Crimson Pro for body text (Google Fonts, Georgia fallback offline).
-- Scene image: `images/<roomId>_<facing>.jpg`, shown at 3:2. Missing images show a dark
-  "No image yet" placeholder (generated in JS).
-- Existing images: room1_north, room1_east, room1_south, room1_west.
-- `images/room2.jpg` is the Knight painting for Level 2. Not loaded yet: when the
-  library is built, rename it to `room2_<facing>.jpg` for whichever wall holds it.
+- Images live in one folder per room: `images/<roomId>/<roomId>_<name>.jpg`, where
+  <name> is the facing (north/east/south/west), a changed wall from the room's
+  optional `scene(s, dir)` (e.g. `west_open`), or a close-up set via `s.closeup`.
+  A close-up shows until the player turns or inspects something else. Missing
+  images show a dark "No image yet" placeholder (generated in JS).
+- Wide images fill the frame (cover). Tall images (height > 0.8 × width, i.e. the
+  portrait close-ups) are shown whole over a dimmed, blurred copy of themselves.
+- Level 1 images (`images/room1/`): north, east, south, west (Pawn painting),
+  west_open (painting swung open, door with keypad behind — shown once unlocked),
+  lock_locked (on Inspect Lock), lock_unlocked (on Use Key), numberpad (on Inspect
+  Number Pad; keypad with a six-digit display).
+- `images/room2/room2.jpg` is the Knight painting for Level 2. Not loaded yet: when
+  the library is built, rename it to `room2_<name>.jpg` for whichever wall holds it.
 
 ## Next steps (priority order)
 

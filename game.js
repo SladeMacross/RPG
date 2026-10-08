@@ -72,8 +72,13 @@ document.addEventListener('DOMContentLoaded', () => {
   //   actions(s, dir)        HTML for context actions (take, use, enter code...)
   //   handlers[action](s,a)  room-specific actions; return the message to show
   //   status(s)              [objectId, label, status] rows for the Search panel; a row only
-  //                          shows once that object has been on screen (see markSeen)
+  //                          shows once that object has been on screen
   //   exits[dir]             destination room, open once s.solved is true
+  //   scene(s, dir)          optional: image name for a wall when it changes (e.g. 'west_open')
+  //
+  // Scene images live in images/<roomId>/<roomId>_<name>.jpg. Setting s.closeup = '<name>'
+  // inside an inspect or handler shows a close-up instead; turning or inspecting
+  // something else returns to the wall view.
 
   const rooms = {
     room1: {
@@ -85,9 +90,11 @@ document.addEventListener('DOMContentLoaded', () => {
         'Take the third letter of each word and find its number in the code on the other wall. Enter the numbers in order.'
       ],
       exits: { west: 'room2' },
+      scene: (s, dir) => dir === 'west' && s.paintingOpen ? 'west_open' : dir,
 
       createState: () => ({
         ...generateCellPuzzle(),
+        closeup: null,
         seen: {},
         searched: {},
         taken: {},
@@ -148,10 +155,12 @@ document.addEventListener('DOMContentLoaded', () => {
           if (s.paintingOpen) return 'The painting hangs open on its hinges, revealing a door with a number pad.';
           return 'The painting shows a small soldier with a short sword and a small shield. He looks undersized, almost too small for the canvas, and behind him rises an enormous fantasy castle.<br><br>There is a lock on the wooden frame.';
         },
-        lock() {
+        lock(s) {
+          s.closeup = 'lock_locked';
           return 'A heavy iron lock holds the frame shut against the wall. It needs a key.';
         },
-        numpad() {
+        numpad(s) {
+          s.closeup = 'numberpad';
           return 'A number pad with ten worn buttons and a small display with room for six digits.';
         }
       },
@@ -199,6 +208,7 @@ document.addEventListener('DOMContentLoaded', () => {
           if (!has('key') || !s.searched.lock) return 'You can’t use that here.';
           state.inventory = state.inventory.filter(i => i !== 'key');
           s.paintingOpen = true;
+          s.closeup = 'lock_unlocked';
           return 'The key turns in the lock. The painting swings open, revealing a hidden door with a number pad.';
         },
         submitCode(s) {
@@ -274,6 +284,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function turn(dir) {
     state.facing = dir;
+    roomState().closeup = null;
     say(room().view(roomState(), dir));
     render();
   }
@@ -293,6 +304,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const available = r.inspectables(s, state.facing).some(([id]) => id === objectId);
     if (!available) return;
     s.searched[objectId] = (s.searched[objectId] || 0) + 1;
+    s.closeup = null;
     say(r.inspect[objectId](s));
     render();
   }
@@ -409,6 +421,14 @@ document.addEventListener('DOMContentLoaded', () => {
   // ---------- Rendering ----------
 
   const sceneImg = $('sceneImg');
+  // Tall images (close-ups) are shown whole, over a blurred copy of themselves;
+  // wide wall views fill the frame.
+  sceneImg.addEventListener('load', () => {
+    const tall = sceneImg.naturalHeight > sceneImg.naturalWidth * 0.8;
+    const frame = sceneImg.parentElement;
+    frame.classList.toggle('closeup', tall);
+    frame.style.setProperty('--scene-src', tall ? `url("${sceneImg.src}")` : 'none');
+  });
   sceneImg.addEventListener('error', () => {
     const name = sceneImg.dataset.scene || 'scene';
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800"><rect width="100%" height="100%" fill="#121419"/><text x="50%" y="50%" fill="#6f6a5d" font-family="Georgia, serif" font-size="40" text-anchor="middle">No image yet: ${name}</text></svg>`;
@@ -429,11 +449,12 @@ document.addEventListener('DOMContentLoaded', () => {
     $('moveForward').classList.toggle('exit-open', exitOpen(dir));
     $('moveBack').classList.toggle('exit-open', exitOpen(rotate(dir, 2)));
 
-    const scene = `${state.currentRoom}_${dir}`;
+    const view = s.closeup || (r.scene ? r.scene(s, dir) : dir);
+    const scene = `${state.currentRoom}_${view}`;
     if (sceneImg.dataset.scene !== scene) {
       sceneImg.dataset.scene = scene;
-      sceneImg.src = `images/${scene}.jpg`;
-      sceneImg.alt = `${r.name}, facing ${dir}`;
+      sceneImg.src = `images/${state.currentRoom}/${scene}.jpg`;
+      sceneImg.alt = s.closeup ? `${r.name}: close-up` : `${r.name}, facing ${dir}`;
     }
 
     // Everything inspectable right now is on screen, so it counts as seen from here on.

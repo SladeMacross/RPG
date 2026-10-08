@@ -167,6 +167,20 @@ input:focus-visible {
   object-fit: cover;   /* fill the frame edge to edge, no side bars */
   object-position: center;
 }
+/* Tall close-ups (lock, number pad): show the whole image, with a dimmed,
+   blurred copy of it filling the rest of the frame instead of black bars. */
+.scene { position: relative; }
+.scene.closeup::before {
+  content: '';
+  position: absolute;
+  inset: -20px;
+  background: var(--scene-src) center / cover no-repeat;
+  filter: blur(18px) brightness(0.45);
+}
+.scene.closeup #sceneImg {
+  position: relative;
+  object-fit: contain;
+}
 
 /* Description: the main focus */
 .description {
