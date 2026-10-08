@@ -1,6 +1,6 @@
 # CLAUDE.md — Click Game (working title: Escape The Room)
 
-Last updated: 2026-10-07
+Last updated: 2026-10-08
 
 ## What the game is
 
@@ -14,7 +14,28 @@ chess meta-puzzle running through the whole game.
   repo; its source is pasted in `Projects/Video Game/video game.txt`. Reference only.
 
 To run locally: serve this folder over HTTP (e.g. `python -m http.server`) and
-open `index.html`. Opening the file directly also works.
+open `index.html`. Opening the file directly also works. In the Claude desktop app,
+`.claude/launch.json` has an "rpg" preview on port 8125 (python http.server; it
+caches, so force-reload game.js/style.css after edits).
+
+## Where it lives
+
+- Local folder: `Projects\RPG` (renamed from `Click-Game` on 2026-10-07).
+- GitHub: https://github.com/Wargod-Enterprises/RPG (moved from SladeMacross on
+  2026-10-07). Branch `main`; David's history commits straight to main.
+- Live (GitHub Pages, from main): https://wargod-enterprises.github.io/RPG/ —
+  updates about a minute after a push. Combat prototype:
+  https://wargod-enterprises.github.io/RPG/combat-demo.html
+- git works from the Bash tool (Git Bash), not from PowerShell. No `gh` CLI.
+
+## Status: Chapter 1
+
+Level 1 is complete in story, mechanics and visuals and is meant to ship as a
+finished Chapter 1 (a vertical slice) before later levels. Remaining before
+sharing: David's own play-through on a laptop and a phone, and the game's real
+title (the title screen, `<h1>` and browser tab still say "Click Game" /
+"Click-Game"). The RPG was chosen over the hacker game because it is closest
+to done; the hacker game is parked, not abandoned.
 
 ## Story & narrative (decided — do not change)
 
@@ -63,7 +84,7 @@ every puzzle distinct (design principle 5):
   Inspect Painting → Inspect Lock appears → Use Key (needs lock inspected) →
   Inspect Number Pad appears → code input appears. The Search panel never
   lists hidden spots.
-- STATUS SHOWS ONLY WHAT'S BEEN ON SCREEN (decided 2026-10-07, applies to every room):
+- SEARCH PANEL SHOWS ONLY WHAT'S BEEN ON SCREEN (decided 2026-10-07, applies to every room):
   an object joins the Search panel the first time it is on screen (you face its
   wall, or it's discovered while you face it) and then stays. A new game starts
   with only North Wall listed.
@@ -74,7 +95,9 @@ every puzzle distinct (design principle 5):
 - Code = the cipher number of the 3rd letter of each word, in order, as shown
   (two digits each) → ALWAYS 6 digits. What the player sees is exactly what they type.
 - The painting is the Pawn. The key is consumed when used on the lock.
-  Correct code → "Move West" exits.
+- Correct code → the view steps back from the keypad to the door-open image
+  (west_exit), Forward glows gold facing west, and "Step Through the Door"
+  appears in Actions from any facing. Either leads to Level 2.
 - Randomized every new game.
 - 3 sequential hints.
 - `images/room1/room1_west.jpg` shows the Pawn painting (young soldier, short sword, round
@@ -115,7 +138,17 @@ every puzzle distinct (design principle 5):
   not "Attack", which is a combat move; any
   pattern clue belongs to the environment (room text, walls, objects), not the enemy.
 - Layout prototype: `combat-demo.html` (standalone, not linked from the game).
-- UI: the combat panel (`#combatPanel`, buttons `combatAttack/Block/Magic/Item/Run`)
+  In a fight the frame turns red (--danger) instead of gold, the enemy is drawn
+  over the scene with a nameplate and hearts, the description reads
+  "Combat · Round N", and the pad + Actions are replaced by a "Your move" card
+  (big Attack/Block/Magic, smaller Item/Run) beside a card with your hearts and
+  the enemy's moves so far (✓/✗ per round, "?" for next). The side panel adds a
+  Counters card with the rule triangle. After the fight the normal layout returns.
+- DEMO-ONLY CHOICES, NOT DECIDED: showing the enemy's move history (may be too
+  easy for later enemies — harder fights could hide it); hearts (Guard 4, player 5;
+  wrong counter −1 you, right counter −1 enemy, same move = no damage); Item heals
+  1 without using the turn; Run returns to exploration and the enemy fully recovers.
+- UI in game.js: the combat panel (`#combatPanel`, buttons `combatAttack/Block/Magic/Item/Run`)
   is hidden during exploration. `setCombat(true)` in game.js shows it and hides the
   movement pad and room actions; the buttons have no handlers yet.
   Item = use a consumable. Run = penalty/reset, TBD.
@@ -151,7 +184,7 @@ every puzzle distinct (design principle 5):
 - The engine counts inspections in `s.searched[objectId]` (1, 2, 3...) before
   calling `inspect[objectId]`, so rooms can hide things behind a second look.
 - Buttons use `data-action` / `data-arg` and one delegated click listener.
-  Global actions: inspect, take, inspectItem, showNote. Anything else is looked
+  Global actions: inspect, take, inspectItem, showNote, exitRoom. Anything else is looked
   up in the current room's `handlers` (which return the message HTML).
 - `state.notes` are per-room (cleared on leaving); `state.persistentNotes` last
   the whole game (painting descriptions).
@@ -183,7 +216,8 @@ every puzzle distinct (design principle 5):
   Crimson Pro for body text (Google Fonts, Georgia fallback offline).
 - Images live in one folder per room: `images/<roomId>/<roomId>_<name>.jpg`, where
   <name> is the facing (north/east/south/west), a changed wall from the room's
-  optional `scene(s, dir)` (e.g. `west_open`), or a close-up set via `s.closeup`.
+  optional `scene(s, dir)` (e.g. `west_open`; it may return a list, later names
+  being fallbacks if an image doesn't exist yet), or a close-up set via `s.closeup`.
   A close-up shows until the player turns or inspects something else. Missing
   images show a dark "No image yet" placeholder (generated in JS).
 - Wide images fill the frame (cover). Tall images (height > 0.8 × width, i.e. the
@@ -199,13 +233,18 @@ every puzzle distinct (design principle 5):
 
 ## Next steps (priority order)
 
-1. Design and build Level 2 (library, knight's-move bookshelf puzzle).
-2. Design the hallway sections in detail.
-3. Build the combat system and wire up the combat buttons.
-4. Chess collectible system.
-5. Level 3 onward.
+1. Finish Chapter 1: David plays Level 1 start to escape on a laptop and a phone;
+   give the game its real title; share the live link.
+2. Design and build Level 2 (library, knight's-move bookshelf puzzle).
+3. Design the hallway sections in detail.
+4. Build the combat system in game.js, starting from combat-demo.html, once the
+   demo-only choices above are decided.
+5. Chess collectible system.
+6. Level 3 onward.
 
-(Done: Pawn painting image replaced, 2026-10-06.)
+Done: Pawn painting (2026-10-06); two layout/visual polish passes, Search panel,
+one-screen laptop layout, phone layout, Level 1 close-up and door images, exit
+button, combat layout demo (2026-10-07/08).
 
 ## Notes for the continuing AI
 
@@ -214,3 +253,7 @@ every puzzle distinct (design principle 5):
   Trust them unless they contradict this document.
 - When David says something is decided, it is decided. Don't relitigate.
 - David thinks in big concepts and systems; translate high-level direction into working code.
+- When David says "tell me if you understand first" (or similar), restate the
+  change and any open questions, then WAIT for his go-ahead before editing.
+- When David asks for a push: commit to main, push, then confirm the live site
+  has picked it up. Keep this file updated with every decision.
